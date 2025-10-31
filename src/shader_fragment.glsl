@@ -35,6 +35,9 @@ uniform sampler2D TextureImage0;
 uniform sampler2D TextureImage1;
 uniform sampler2D TextureImage2;
 uniform sampler2D TextureImage3;
+uniform sampler2D TextureImage4;
+uniform sampler2D TextureImage5;
+uniform sampler2D TextureImage6;
 
 // O valor de saída ("out") de um Fragment Shader é a cor final do fragmento.
 out vec4 color;
@@ -138,41 +141,29 @@ void main()
     }
     else if ( object_id == FUSCA)
     {
-        // PREENCHA AQUI as coordenadas de textura da esfera, computadas com
-        // projeção esférica EM COORDENADAS DO MODELO. Utilize como referência
-        // o slides 134-150 do documento Aula_20_Mapeamento_de_Texturas.pdf.
-        // A esfera que define a projeção deve estar centrada na posição
-        // "bbox_center" definida abaixo.
+        
+        // PREENCHA AQUI as coordenadas de textura do coelho, computadas com
+        // projeção planar XY em COORDENADAS DO MODELO. Utilize como referência
+        // o slides 99-104 do documento Aula_20_Mapeamento_de_Texturas.pdf,
+        // e também use as variáveis min*/max* definidas abaixo para normalizar
+        // as coordenadas de textura U e V dentro do intervalo [0,1]. Para
+        // tanto, veja por exemplo o mapeamento da variável 'p_v' utilizando
+        // 'h' no slides 158-160 do documento Aula_20_Mapeamento_de_Texturas.pdf.
+        // Veja também a Questão 4 do Questionário 4 no Moodle.
 
-        // Você deve utilizar:
-        //   função 'length( )' : comprimento Euclidiano de um vetor
-        //   função 'atan( , )' : arcotangente. Veja https://en.wikipedia.org/wiki/Atan2.
-        //   função 'asin( )'   : seno inverso.
-        //   constante M_PI
-        //   variável position_model
+        float minx = bbox_min.x;
+        float maxx = bbox_max.x;
 
-        vec4 bbox_center = (bbox_min + bbox_max) / 2.0;
+        float miny = bbox_min.y;
+        float maxy = bbox_max.y;
 
-        float raio = 1.0;
+        float minz = bbox_min.z;
+        float maxz = bbox_max.z;
 
-        vec4 pc = normalize(position_model - bbox_center);
+        //Mudançcas que não foi possível testar no lab
 
-        vec4 pl = bbox_center + raio*pc;
-
-        vec4 vecp = pl - bbox_center;
-
-        float theta = atan(pl[0], pl[2]);
-        float phi = asin(pl[1]/raio);
-
-        U = (theta + M_PI) / (2.0*M_PI);
-        V = (phi + M_PI/2.0) / M_PI;
-    }
-    else // Objeto desconhecido = preto
-    {
-        Kd = vec3(0.0,0.0,0.0);
-        Ks = vec3(0.0,0.0,0.0);
-        Ka = vec3(0.0,0.0,0.0);
-        q = 1.0;
+        U = position_model[0]/(maxx-minx);
+        V = position_model[1]/(maxy-miny);
     }
 
 
@@ -187,13 +178,16 @@ void main()
 
     }
     else if (object_id == FUSCA){
-         // Obtemos a refletância difusa a partir da leitura da imagem TextureImage0
-        vec3 Kd0 = texture(TextureImage3, vec2(U,V)).rgb;
+        vec3 Kd0 = texture(TextureImage3, vec2(U, V)).rgb; // difusa
+        vec3 Ks0 = texture(TextureImage4, vec2(U, V)).rgb; // especular
+        float gloss = texture(TextureImage5, vec2(U, V)).r; // gloss
 
-        // Equação de Iluminação
-        float lambert = max(0,dot(n,l));
+        float lambert = max(dot(n, l), 0.0);
+        vec3 diffuse = Kd0 * lambert;
+        vec3 specular = Ks0 * pow(max(dot(r, v), 0.0), gloss * 64.0);
+        vec3 ambient = Kd0 * 0.2;
 
-        color.rgb = Kd0 * (lambert + 0.01);
+        color.rgb = diffuse + specular + ambient;
     }
     else{
         // Espectro da fonte de iluminação

@@ -302,7 +302,11 @@ int main(int argc, char* argv[])
     LoadTextureImage("../../data/tc-earth_daymap_surface.jpg");      // TextureImage0
     LoadTextureImage("../../data/tc-earth_nightmap_citylights.gif"); // TextureImage1
     LoadTextureImage("../../data/tc-earth_nightmap_citylights.gif"); // TextureImage2
-    LoadTextureImage("../../models/fusca/source/volkswagen_beetle_toy_SF/volkswagen_beetle_toy.jpg"); // TextureImage3
+    LoadTextureImage("../../models/fusca/textures/volkswagen_beetle_toy.jpeg"); // TextureImage3
+
+    LoadTextureImage("../../models/fusca/textures/volkswagen_beetle_toy_specular.jpeg");
+    LoadTextureImage("../../models/fusca/textures/volkswagen_beetle_toy_gloss.jpeg");
+    LoadTextureImage("../../models/fusca/textures/internal_ground_ao_texture.jpeg");
 
     // Construímos a representação de objetos geométricos através de malhas de triângulos
     ObjModel spheremodel("../../data/sphere.obj");
@@ -562,6 +566,13 @@ void DrawVirtualObject(const char* object_name)
     // comentários detalhados dentro da definição de BuildTrianglesAndAddToVirtualScene().
     glBindVertexArray(g_VirtualScene[object_name].vertex_array_object_id);
 
+    // Setamos as variáveis "bbox_min" e "bbox_max" do fragment shader
+    // com os parâmetros da axis-aligned bounding box (AABB) do modelo.
+    glm::vec3 bbox_min = g_VirtualScene[object_name].bbox_min;
+    glm::vec3 bbox_max = g_VirtualScene[object_name].bbox_max;
+    glUniform4f(g_bbox_min_uniform, bbox_min.x, bbox_min.y, bbox_min.z, 1.0f);
+    glUniform4f(g_bbox_max_uniform, bbox_max.x, bbox_max.y, bbox_max.z, 1.0f);
+
     // Pedimos para a GPU rasterizar os vértices dos eixos XYZ
     // apontados pelo VAO como linhas. Veja a definição de
     // g_VirtualScene[""] dentro da função BuildTrianglesAndAddToVirtualScene(), e veja
@@ -628,6 +639,11 @@ void LoadShadersFromFiles()
     glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage1"), 1);
     glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage2"), 2);
     glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage3"), 3);
+
+    glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage4"), 4);
+    glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage5"), 5);
+    glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage6"), 6);
+
     glUseProgram(0);
 }
 
