@@ -153,6 +153,9 @@ void MouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
 void CursorPosCallback(GLFWwindow* window, double xpos, double ypos);
 void ScrollCallback(GLFWwindow* window, double xoffset, double yoffset);
 
+//Funções novas
+void CarControl();
+
 // Definimos uma estrutura que armazenará dados necessários para renderizar
 // cada objeto da cena virtual.
 struct SceneObject
@@ -197,7 +200,7 @@ bool g_MiddleMouseButtonPressed = false; // Análogo para botão do meio do mous
 // renderização.
 float g_CameraTheta = 0.0f; // Ângulo no plano ZX em relação ao eixo Z
 float g_CameraPhi = 0.0f;   // Ângulo em relação ao eixo Y
-float g_CameraDistance = 3.5f; // Distância da câmera para a origem
+float g_CameraDistance = 5.0f; // Distância da câmera para a origem
 
 // Variáveis que controlam rotação do antebraço
 float g_ForearmAngleZ = 0.0f;
@@ -213,6 +216,20 @@ bool g_UsePerspectiveProjection = true;
 // Variável que controla se o texto informativo será mostrado na tela.
 bool g_ShowInfoText = true;
 
+int window_height = 900;
+int window_width = 1600;
+
+//controle de teclas
+bool w_pressed = false;
+bool s_pressed = false;
+
+//controle de velocidade
+auto t_prev = glfwGetTime();
+
+float aceleracao_atual = 0.0f;
+float velocidade_atual = 0.0f;
+float aceleracao_resistencia = -1.5f;
+
 // Variáveis que definem um programa de GPU (shaders). Veja função LoadShadersFromFiles().
 GLuint g_GpuProgramID = 0;
 GLint g_model_uniform;
@@ -225,7 +242,7 @@ GLint g_bbox_max_uniform;
 // Número de texturas carregadas pela função LoadTextureImage()
 GLuint g_NumLoadedTextures = 0;
 
-auto translate_carro = Matrix_Translate(1.0f,0.0f,0.0f);
+auto translate_carro = glm::vec3(1.0f,0.0f,0.0f);
 
 int main(int argc, char* argv[])
 {
@@ -256,7 +273,7 @@ int main(int argc, char* argv[])
     // Criamos uma janela do sistema operacional, com 800 colunas e 600 linhas
     // de pixels, e com título "INF01047 ...".
     GLFWwindow* window;
-    window = glfwCreateWindow(800, 600, "INF01047 - 578647 - João Vitor Angelo Pereira", NULL, NULL);
+    window = glfwCreateWindow(window_width, window_height, "INF01047 - 578647 - João Vitor Angelo Pereira", NULL, NULL);
     if (!window)
     {
         glfwTerminate();
@@ -287,7 +304,7 @@ int main(int argc, char* argv[])
     // redimensionada, por consequência alterando o tamanho do "framebuffer"
     // (região de memória onde são armazenados os pixels da imagem).
     glfwSetFramebufferSizeCallback(window, FramebufferSizeCallback);
-    FramebufferSizeCallback(window, 800, 600); // Forçamos a chamada do callback acima, para definir g_ScreenRatio.
+    FramebufferSizeCallback(window, window_width, window_height); // Forçamos a chamada do callback acima, para definir g_ScreenRatio.
 
     // Imprimimos no terminal informações sobre a GPU do sistema
     const GLubyte *vendor      = glGetString(GL_VENDOR);
@@ -377,6 +394,9 @@ int main(int argc, char* argv[])
         // os shaders de vértice e fragmentos).
         glUseProgram(g_GpuProgramID);
 
+        //atualiza movimento do carro
+        CarControl();
+
         // Computamos a posição da câmera utilizando coordenadas esféricas.  As
         // variáveis g_CameraDistance, g_CameraPhi, e g_CameraTheta são
         // controladas pelo mouse do usuário. Veja as funções CursorPosCallback()
@@ -386,11 +406,11 @@ int main(int argc, char* argv[])
         float z = r*cos(g_CameraPhi)*cos(g_CameraTheta);
         float x = r*cos(g_CameraPhi)*sin(g_CameraTheta);
 
-        auto pos_carro = translate_carro * Matrix_Identity();
+        auto pos_carro = Matrix_Translate(translate_carro[0], translate_carro[1], translate_carro[2]) * Matrix_Identity();
 
         // Abaixo definimos as varáveis que efetivamente definem a câmera virtual.
-        // Veja slides 195-227 e 229-234 do documento Aula_08_Sistemas_de_Coordenadas.pdf.
-        glm::vec4 camera_position_c  = glm::vec4(x,y,z,1.0f); // Ponto "c", centro da câmera
+        // camera deve se mexer junto com o carro
+        glm::vec4 camera_position_c  = glm::vec4(x,y,z,1.0f) + glm::vec4(translate_carro[0], translate_carro[1], translate_carro[2], 0.0f); // Ponto "c", centro da câmera
         glm::vec4 camera_lookat_l    = pos_carro[3]; // Ponto "l", para onde a câmera (look-at) estará sempre olhando
         glm::vec4 camera_view_vector = camera_lookat_l - camera_position_c; // Vetor "view", sentido para onde a câmera está virada
         glm::vec4 camera_up_vector   = glm::vec4(0.0f,1.0f,0.0f,0.0f); // Vetor "up" fixado para apontar para o "céu" (eito Y global)
@@ -465,8 +485,7 @@ int main(int argc, char* argv[])
         DrawVirtualObject("the_plane");
 
         //jeep renegade
-        model = Matrix_Translate(1.0f,0.0f,0.0f)
-                *Matrix_Scale(1.0f, 1.0f, 1.0f);
+        model = pos_carro;
         glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
         glUniform1i(g_object_id_uniform, CAR);
         DrawVirtualObject("Mesh1 Group1 Model");
@@ -1203,31 +1222,24 @@ void CursorPosCallback(GLFWwindow* window, double xpos, double ypos)
     // parâmetros que definem a posição da câmera dentro da cena virtual.
     // Assim, temos que o usuário consegue controlar a câmera.
 
-    if (true)
-    {
-        // Deslocamento do cursor do mouse em x e y de coordenadas de tela!
-        float dx = xpos - g_LastCursorPosX;
-        float dy = ypos - g_LastCursorPosY;
-
-        // Atualizamos parâmetros da câmera com os deslocamentos
-        g_CameraTheta -= 0.01f*dx;
-        g_CameraPhi   += 0.01f*dy;
-
-        // Em coordenadas esféricas, o ângulo phi deve ficar entre -pi/2 e +pi/2.
-        float phimax = 3.141592f/2;
-        float phimin = -phimax;
-
-        if (g_CameraPhi > phimax)
-            g_CameraPhi = phimax;
-
-        if (g_CameraPhi < phimin)
-            g_CameraPhi = phimin;
-
-        // Atualizamos as variáveis globais para armazenar a posição atual do
-        // cursor como sendo a última posição conhecida do cursor.
-        g_LastCursorPosX = xpos;
-        g_LastCursorPosY = ypos;
-    }
+    //manuseio do mouse
+    // Deslocamento do cursor do mouse em x e y de coordenadas de tela!
+    float dx = xpos - g_LastCursorPosX;
+    float dy = ypos - g_LastCursorPosY;
+    // Atualizamos parâmetros da câmera com os deslocamentos
+    g_CameraTheta -= 0.01f*dx;
+    g_CameraPhi   += 0.01f*dy;
+    // Em coordenadas esféricas, o ângulo phi deve ficar entre -pi/2 e +pi/2.
+    float phimax = 3.141592f/2;
+    float phimin = -phimax;
+    if (g_CameraPhi > phimax)
+        g_CameraPhi = phimax;
+    if (g_CameraPhi < phimin)
+        g_CameraPhi = phimin;
+    // Atualizamos as variáveis globais para armazenar a posição atual do
+    // cursor como sendo a última posição conhecida do cursor.
+    g_LastCursorPosX = xpos;
+    g_LastCursorPosY = ypos;
 
     if (g_RightMouseButtonPressed)
     {
@@ -1355,6 +1367,24 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
         LoadShadersFromFiles();
         fprintf(stdout,"Shaders recarregados!\n");
         fflush(stdout);
+    }
+
+    //movimento do carro
+    if (key == GLFW_KEY_W && action == GLFW_PRESS){
+        //vai pra frente
+        w_pressed = true;
+    }
+    if (key == GLFW_KEY_W && action == GLFW_RELEASE){
+        w_pressed = false;
+    }
+
+    //movimento do carro
+    if (key == GLFW_KEY_S && action == GLFW_PRESS){
+        //vai pra frente
+        s_pressed = true;
+    }
+    if (key == GLFW_KEY_S && action == GLFW_RELEASE){
+        s_pressed = false;
     }
 }
 
@@ -1659,6 +1689,31 @@ void PrintObjModelInfo(ObjModel* model)
     }
     printf("\n");
   }
+}
+
+void CarControl(){
+    auto t_now = glfwGetTime();
+
+    auto t_delta = t_now - t_prev;
+
+    if (w_pressed){
+        aceleracao_atual = 0.2f;
+    }
+    else if (s_pressed){
+        aceleracao_atual = -0.1f;
+    }
+    else {
+        aceleracao_atual = 0.0f;
+    }
+    
+    //calcula velocidade
+    velocidade_atual = velocidade_atual + aceleracao_atual*(t_delta) + (aceleracao_resistencia*velocidade_atual*t_delta);
+
+    translate_carro[2] = translate_carro[2] + velocidade_atual;
+
+    //curvas como angulos de rotação
+
+    t_prev = t_now;
 }
 
 // set makeprg=cd\ ..\ &&\ make\ run\ >/dev/null
