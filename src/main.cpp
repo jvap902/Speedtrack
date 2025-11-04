@@ -272,6 +272,8 @@ int main(int argc, char* argv[])
     // ... ou rolar a "rodinha" do mouse.
     glfwSetScrollCallback(window, ScrollCallback);
 
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+
     // Indicamos que as chamadas OpenGL deverão renderizar nesta janela
     glfwMakeContextCurrent(window);
 
@@ -302,11 +304,16 @@ int main(int argc, char* argv[])
     LoadTextureImage("../../data/tc-earth_daymap_surface.jpg");      // TextureImage0
     LoadTextureImage("../../data/tc-earth_nightmap_citylights.gif"); // TextureImage1
     LoadTextureImage("../../data/tc-earth_nightmap_citylights.gif"); // TextureImage2
+
+    LoadTextureImage("../../models/Jeep_Renegade_2016/Jeep_Renegade_2016/car_jeep_ren.jpg");      // TextureImage3
+
+    /*
     LoadTextureImage("../../models/fusca/textures/volkswagen_beetle_toy.jpeg"); // TextureImage3
 
     LoadTextureImage("../../models/fusca/textures/volkswagen_beetle_toy_specular.jpeg");
     LoadTextureImage("../../models/fusca/textures/volkswagen_beetle_toy_gloss.jpeg");
     LoadTextureImage("../../models/fusca/textures/internal_ground_ao_texture.jpeg");
+    */
 
     // Construímos a representação de objetos geométricos através de malhas de triângulos
     ObjModel spheremodel("../../data/sphere.obj");
@@ -321,7 +328,8 @@ int main(int argc, char* argv[])
     ComputeNormals(&planemodel);
     BuildTrianglesAndAddToVirtualScene(&planemodel);
 
-    ObjModel carmodel("../../models/agera/Koenigsegg-agera.obj");
+    //ObjModel carmodel("../../models/agera/Koenigsegg-agera.obj");
+    ObjModel carmodel("../../models/Jeep_Renegade_2016/Jeep_Renegade_2016.obj");
     ComputeNormals(&carmodel);
     BuildTrianglesAndAddToVirtualScene(&carmodel);
 
@@ -452,6 +460,22 @@ int main(int argc, char* argv[])
         glUniform1i(g_object_id_uniform, PLANE);
         DrawVirtualObject("the_plane");
 
+        //jeep renegade
+        model = Matrix_Translate(1.0f,0.0f,0.0f)
+                *Matrix_Scale(1.0f, 1.0f, 1.0f);
+        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+        glUniform1i(g_object_id_uniform, CAR);
+        DrawVirtualObject("Mesh1 Group1 Model");
+        DrawVirtualObject("Mesh2 Group2 Model");
+        DrawVirtualObject("Mesh3 Group3 Model");
+        DrawVirtualObject("Mesh4 Group4 Model");
+        DrawVirtualObject("Mesh5 Group5 Model");
+        DrawVirtualObject("Mesh6 Group6 Model");
+        DrawVirtualObject("Mesh7 Group7 Model");
+        DrawVirtualObject("Mesh8 Group8 Model");
+        DrawVirtualObject("Mesh9 Group9 Model");
+        DrawVirtualObject("Mesh10 Group10 Model");
+
         /*################### Desenhando Koenisegg ################################
         model = Matrix_Translate(1.0f,0.0f,0.0f)
                 *Matrix_Scale(0.1f, 0.1f, 0.1f);
@@ -464,13 +488,13 @@ int main(int argc, char* argv[])
         DrawVirtualObject("RR_Koenisegg_one.501");
         //#########################################################################*/
 
-        //################### Desenhando Fusca #####################################
+        /*################### Desenhando Fusca #####################################
         model = Matrix_Translate(1.0f,0.0f,0.0f)
                 *Matrix_Scale(1.0f, 1.0f, 1.0f);
         glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
         glUniform1i(g_object_id_uniform, FUSCA);
         DrawVirtualObject("volkswagen_beetle_toy");
-        //#########################################################################
+        //#########################################################################*/
 
         // Imprimimos na tela os ângulos de Euler que controlam a rotação do
         // terceiro cubo.
@@ -1175,7 +1199,7 @@ void CursorPosCallback(GLFWwindow* window, double xpos, double ypos)
     // parâmetros que definem a posição da câmera dentro da cena virtual.
     // Assim, temos que o usuário consegue controlar a câmera.
 
-    if (g_LeftMouseButtonPressed)
+    if (true)
     {
         // Deslocamento do cursor do mouse em x e y de coordenadas de tela!
         float dx = xpos - g_LastCursorPosX;

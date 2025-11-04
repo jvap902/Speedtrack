@@ -165,6 +165,16 @@ void main()
         U = position_model[0]/(maxx-minx);
         V = position_model[1]/(maxy-miny);
     }
+    else if ( object_id == CAR )
+    {
+    vec3 texColor = texture(TextureImage3, texcoords).rgb;
+
+    // Coeficientes espectrais derivados da textura
+    Kd = texColor;                  // Difusa baseada na textura
+    Ka = texColor * 0.3;            // Ambiente mais fraco
+    Ks = vec3(0.3, 0.3, 0.3);       // Reflexão especular leve
+    q  = 64.0;                      // Brilho moderado
+    }
 
 
     if (object_id == SPHERE){
