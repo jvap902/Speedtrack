@@ -216,20 +216,6 @@ bool g_UsePerspectiveProjection = true;
 // Variável que controla se o texto informativo será mostrado na tela.
 bool g_ShowInfoText = true;
 
-int window_height = 900;
-int window_width = 1600;
-
-//controle de teclas
-bool w_pressed = false;
-bool s_pressed = false;
-
-//controle de velocidade
-auto t_prev = glfwGetTime();
-
-float aceleracao_atual = 0.0f;
-float velocidade_atual = 0.0f;
-float aceleracao_resistencia = -1.5f;
-
 // Variáveis que definem um programa de GPU (shaders). Veja função LoadShadersFromFiles().
 GLuint g_GpuProgramID = 0;
 GLint g_model_uniform;
@@ -242,7 +228,28 @@ GLint g_bbox_max_uniform;
 // Número de texturas carregadas pela função LoadTextureImage()
 GLuint g_NumLoadedTextures = 0;
 
-auto translate_carro = glm::vec3(1.0f,0.0f,0.0f);
+// ############ novas variáveis ############
+int window_height = 900;
+int window_width = 1600;
+
+//controle de teclas
+bool w_pressed = false;
+bool s_pressed = false;
+bool a_pressed = false;
+bool d_pressed = false;
+
+//controle de velocidade
+auto t_prev = glfwGetTime();
+
+float aceleracao_atual = 0.0f;
+float velocidade_atual = 0.0f;
+float aceleracao_resistencia = -1.2f;
+
+//angulo que o carro faz a curva
+auto car_angle = 0.0f;
+float rad_car_angle = 0.0f;
+
+auto translate_carro = glm::vec4(1.0f, -0.7f,0.0f,1.0f); //posição inicial do carro
 
 int main(int argc, char* argv[])
 {
@@ -406,8 +413,11 @@ int main(int argc, char* argv[])
         float z = r*cos(g_CameraPhi)*cos(g_CameraTheta);
         float x = r*cos(g_CameraPhi)*sin(g_CameraTheta);
 
-        auto pos_carro = Matrix_Translate(translate_carro[0], translate_carro[1], translate_carro[2]) * Matrix_Identity();
-
+        auto pos_carro =  Matrix_Translate(translate_carro[0], translate_carro[1], translate_carro[2]) 
+                            * Matrix_Rotate_Y(glm::radians(car_angle)) 
+                            * Matrix_Scale(0.5f, 0.5f, 0.5f)
+                            * Matrix_Identity();
+        
         // Abaixo definimos as varáveis que efetivamente definem a câmera virtual.
         // camera deve se mexer junto com o carro
         glm::vec4 camera_position_c  = glm::vec4(x,y,z,1.0f) + glm::vec4(translate_carro[0], translate_carro[1], translate_carro[2], 0.0f); // Ponto "c", centro da câmera
@@ -425,7 +435,7 @@ int main(int argc, char* argv[])
         // Note que, no sistema de coordenadas da câmera, os planos near e far
         // estão no sentido negativo! Veja slides 176-204 do documento Aula_09_Projecoes.pdf.
         float nearplane = -0.1f;  // Posição do "near plane"
-        float farplane  = -10.0f; // Posição do "far plane"
+        float farplane  = -100.0f; // Posição do "far plane"
 
         if (g_UsePerspectiveProjection)
         {
@@ -479,13 +489,13 @@ int main(int argc, char* argv[])
 
         //Desenhando plano
         model = Matrix_Translate(0.0f, -1.0f, 0.0f)
-                *Matrix_Scale(3.0f, 1.0f, 3.0f);
+                *Matrix_Scale(100.0f, 1.0f, 100.0f);
         glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
         glUniform1i(g_object_id_uniform, PLANE);
         DrawVirtualObject("the_plane");
 
         //jeep renegade
-        model = pos_carro;
+        model =  pos_carro;
         glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
         glUniform1i(g_object_id_uniform, CAR);
         DrawVirtualObject("Mesh1 Group1 Model");
@@ -1371,20 +1381,35 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
 
     //movimento do carro
     if (key == GLFW_KEY_W && action == GLFW_PRESS){
-        //vai pra frente
+        //vai para frente
         w_pressed = true;
     }
     if (key == GLFW_KEY_W && action == GLFW_RELEASE){
         w_pressed = false;
     }
 
-    //movimento do carro
     if (key == GLFW_KEY_S && action == GLFW_PRESS){
-        //vai pra frente
+        //vai para trás
         s_pressed = true;
     }
     if (key == GLFW_KEY_S && action == GLFW_RELEASE){
         s_pressed = false;
+    }
+
+    if (key == GLFW_KEY_A && action == GLFW_PRESS){
+        //vira para a esquerda
+        a_pressed = true;
+    }
+    if (key == GLFW_KEY_A && action == GLFW_RELEASE){
+        a_pressed = false;
+    }
+
+    if (key == GLFW_KEY_D && action == GLFW_PRESS){
+        //vira para a direita
+        d_pressed = true;
+    }
+    if (key == GLFW_KEY_D && action == GLFW_RELEASE){
+        d_pressed = false;
     }
 }
 
@@ -1693,27 +1718,67 @@ void PrintObjModelInfo(ObjModel* model)
 
 void CarControl(){
     auto t_now = glfwGetTime();
-
     auto t_delta = t_now - t_prev;
-
-    if (w_pressed){
-        aceleracao_atual = 0.2f;
-    }
-    else if (s_pressed){
-        aceleracao_atual = -0.1f;
-    }
-    else {
-        aceleracao_atual = 0.0f;
-    }
-    
-    //calcula velocidade
-    velocidade_atual = velocidade_atual + aceleracao_atual*(t_delta) + (aceleracao_resistencia*velocidade_atual*t_delta);
-
-    translate_carro[2] = translate_carro[2] + velocidade_atual;
-
-    //curvas como angulos de rotação
-
     t_prev = t_now;
+
+    // Parâmetros ajustáveis
+    const float max_accel = 8.0f;          // aceleração máxima
+    const float max_speed = 50.0f;          // velocidade máxima
+    const float turn_speed = 80.0f;        // graus por segundo (velocidade de rotação)
+    const float friction = 10.0f;           // desaceleração natural
+
+    // Atualiza aceleração
+    aceleracao_atual = 0.0f;
+
+    if (w_pressed)
+        aceleracao_atual = max_accel;
+    else if (s_pressed)
+        aceleracao_atual = -max_accel;
+
+    // Atualiza velocidade
+    velocidade_atual += aceleracao_atual * t_delta;
+
+     // Aplica resistência (fricção)
+    if (!w_pressed && !s_pressed)
+    {
+        if (velocidade_atual > 0)
+        {
+            velocidade_atual -= friction * t_delta;
+            if (velocidade_atual < 0) velocidade_atual = 0;
+        }
+        else if (velocidade_atual < 0)
+        {
+            velocidade_atual += friction * t_delta;
+            if (velocidade_atual > 0) velocidade_atual = 0;
+        }
+    }
+
+    // Limita velocidade máxima
+    if (velocidade_atual >  max_speed) velocidade_atual =  max_speed;
+    if (velocidade_atual < -max_speed) velocidade_atual = -max_speed;
+
+    //fazer carro girar de acordo com os angulos
+    if(velocidade_atual > 0.01f){
+        if (a_pressed){
+            car_angle += turn_speed * t_delta * (velocidade_atual != 0 ? (velocidade_atual / max_speed) : 1);
+        }
+        else if (d_pressed){
+            car_angle -= turn_speed * t_delta * (velocidade_atual != 0 ? (velocidade_atual / max_speed) : 1);
+        }
+    }
+
+    if(car_angle >= 360)
+        car_angle = car_angle - 360.0f;
+    else if(car_angle <= -360)
+        car_angle = car_angle + 360.0f;
+
+    // Movimento local (em relação ao ângulo do carro)
+    rad_car_angle = glm::radians(car_angle);
+    glm::vec3 forward = glm::vec3(sin(rad_car_angle), 0.0f, cos(rad_car_angle));
+
+    translate_carro[0] += forward[0] * velocidade_atual * t_delta;
+    translate_carro[2] += forward[2] * velocidade_atual * t_delta;
+
 }
 
 // set makeprg=cd\ ..\ &&\ make\ run\ >/dev/null
