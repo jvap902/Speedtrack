@@ -132,12 +132,18 @@ void main()
     }
     else if ( object_id == PLANE )
     {
-        // PREENCHA AQUI
-        // Propriedades espectrais do plano
-        Kd = vec3(0.2,0.2,0.2);
-        Ks = vec3(0.3,0.3,0.3);
-        Ka = vec3(0.0,0.0,0.0);
-        q = 20.0;
+
+        // O plane.obj não tem texcoords. Geramos proceduralmente.
+        // Usamos position_model.x e position_model.z como UVs.
+        // Multiplicamos por 50.0 para repetir a textura (tiling).
+        vec2 plane_uv = vec2(position_model.x, position_model.z) * 100.0;
+        vec3 texColor = texture(TextureImage2, plane_uv).rgb;
+
+        // Coeficientes espectrais derivados da textura
+        Kd = texColor;                  // Difusa baseada na textura
+        Ka = texColor * 0.3;            // Ambiente mais fraco
+        Ks = vec3(0.1, 0.1, 0.1);       // Asfalto não brilha muito
+        q  = 2.0;                      // Brilho bem suave
     }
     else if ( object_id == FUSCA)
     {

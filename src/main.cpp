@@ -329,7 +329,7 @@ int main(int argc, char* argv[])
     //carregando texturas
     LoadTextureImage("../../data/tc-earth_daymap_surface.jpg");      // TextureImage0
     LoadTextureImage("../../data/tc-earth_nightmap_citylights.gif"); // TextureImage1
-    LoadTextureImage("../../data/tc-earth_nightmap_citylights.gif"); // TextureImage2
+    LoadTextureImage("../../data/asfalto.jpg"); // TextureImage2
 
     LoadTextureImage("../../models/Jeep_Renegade_2016/Jeep_Renegade_2016/car_jeep_ren.jpg");      // TextureImage3
 
@@ -413,11 +413,11 @@ int main(int argc, char* argv[])
         float z = r*cos(g_CameraPhi)*cos(g_CameraTheta);
         float x = r*cos(g_CameraPhi)*sin(g_CameraTheta);
 
-        auto pos_carro =  Matrix_Translate(translate_carro[0], translate_carro[1], translate_carro[2]) 
-                            * Matrix_Rotate_Y(glm::radians(car_angle)) 
+        auto pos_carro =  Matrix_Translate(translate_carro[0], translate_carro[1], translate_carro[2])
+                            * Matrix_Rotate_Y(glm::radians(car_angle))
                             * Matrix_Scale(0.5f, 0.5f, 0.5f)
                             * Matrix_Identity();
-        
+
         // Abaixo definimos as varáveis que efetivamente definem a câmera virtual.
         // camera deve se mexer junto com o carro
         glm::vec4 camera_position_c  = glm::vec4(x,y,z,1.0f) + glm::vec4(translate_carro[0], translate_carro[1], translate_carro[2], 0.0f); // Ponto "c", centro da câmera
@@ -589,8 +589,8 @@ void LoadTextureImage(const char* filename)
     glGenSamplers(1, &sampler_id);
 
     // Veja slides 95-96 do documento Aula_20_Mapeamento_de_Texturas.pdf
-    glSamplerParameteri(sampler_id, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glSamplerParameteri(sampler_id, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glSamplerParameteri(sampler_id, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glSamplerParameteri(sampler_id, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
     // Parâmetros de amostragem da textura.
     glSamplerParameteri(sampler_id, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
@@ -1724,7 +1724,7 @@ void CarControl(){
     // Parâmetros ajustáveis
     const float max_accel = 8.0f;          // aceleração máxima
     const float max_speed = 50.0f;          // velocidade máxima
-    const float turn_speed = 80.0f;        // graus por segundo (velocidade de rotação)
+    const float turn_speed = 180.0f;        // graus por segundo (velocidade de rotação)
     const float friction = 10.0f;           // desaceleração natural
 
     // Atualiza aceleração
@@ -1758,7 +1758,7 @@ void CarControl(){
     if (velocidade_atual < -max_speed) velocidade_atual = -max_speed;
 
     //fazer carro girar de acordo com os angulos
-    if(velocidade_atual > 0.01f){
+    if(abs(velocidade_atual) > 0.01f){
         if (a_pressed){
             car_angle += turn_speed * t_delta * (velocidade_atual != 0 ? (velocidade_atual / max_speed) : 1);
         }
@@ -1783,4 +1783,3 @@ void CarControl(){
 
 // set makeprg=cd\ ..\ &&\ make\ run\ >/dev/null
 // vim: set spell spelllang=pt_br :
-
