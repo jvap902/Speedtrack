@@ -403,6 +403,8 @@ int main(int argc, char* argv[])
     // Ficamos em um loop infinito, renderizando, até que o usuário feche a janela
     while (!glfwWindowShouldClose(window))
     {
+        boxes.clear();//limpa array de bboxes
+
         // Aqui executamos as operações de renderização
 
         // Definimos a cor do "fundo" do framebuffer como branco.  Tal cor é
@@ -573,7 +575,7 @@ int main(int argc, char* argv[])
         //#########################################################################*/
 
         //verificando colisões
-        //auto possibleCollisions = SweepAndPrune(boxes);
+        auto possibleCollisions = SweepAndPrune(boxes);
 
         // Imprimimos na tela os ângulos de Euler que controlam a rotação do
         // terceiro cubo.
