@@ -1,5 +1,4 @@
 #include "../include/collision.h"
-#include <algorithm>
 
 struct Endpoint {
     float value;
@@ -53,111 +52,68 @@ std::vector<std::pair<int,int>> SweepAndPrune(std::vector<AABB>& boxes)
     return possible;
 }
 
+bool RaySphere(const glm::vec3& rayOrigin, const glm::vec3& rayDir, const Sphere& sphere, float & t_hit){
 
-/*#include "../include/collision.h"
+    glm::vec3 oc = rayOrigin - sphere.center;
 
-using namespace std;
+    float a = glm::dot(rayDir, rayDir);
+    float b = 2.0f * glm::dot(oc, rayDir);
+    float c = glm::dot(oc, oc) - sphere.radius * sphere.radius;
 
-struct BoxEndpoint {
-    float value;
-    int boxIndex;
-    bool isMin;
-};
+    float discriminant = b*b - 4*a*c;
+    if (discriminant < 0.0f)
+        return false;  // no intersection
 
-vector<pair<int,int>> SweepAndPrune(vector<AABB>& boxes){
-    vector<pair<int, int>> possibleCollisions;
+    float sqrt_disc = sqrt(discriminant);
+    float t1 = (-b - sqrt_disc) / (2.0f * a);
+    float t2 = (-b + sqrt_disc) / (2.0f * a);
 
-    priority_queue<pair<float, int>, vector<pair<float, int>>, greater<pair<float, int>>> x_endpoints, y_endpoints, z_endpoints; //pair<coord, object>
-    vector<pair<int, int>> x_possible, y_possible, z_possible, temp;
-    set<int> active; //set auxiliar que tem as bbox que foram abertas mas não fechadas ainda
-
-    //ideia: coloca todos inicios e fins das bbox em um mesmo vetor/pilha, enquanto não fechar o inicio com o fim, adiciona como possivel colisão todos que aparecerem
-    for (auto box : boxes){
-        x_endpoints.push({box.min.x, box.id});
-        x_endpoints.push({box.max.x, box.id});
-
-        y_endpoints.push({box.min.y, box.id});
-        y_endpoints.push({box.max.y, box.id});
-
-        z_endpoints.push({box.min.z, box.id});
-        z_endpoints.push({box.max.z, box.id});
+    // check if intersection occurs in front of ray
+    if (t1 >= 0.0f) {
+        t_hit = t1;
+        return true;
+    } else if (t2 >= 0.0f) {
+        t_hit = t2;
+        return true;
     }
 
-    //construindo lista de possíveis colisões em x
-    while(!x_endpoints.empty()){
-        auto atual = x_endpoints.top();
-        x_endpoints.pop();
-
-        if(active.find(atual.second) != active.end()){ //se já estava nos ativos, quer dizer que se fecha bbox e coloca todos pares possíveis entre atual e outros que estão ativos
-
-            active.erase(atual.second);
-
-            for (auto object : active){
-                if (atual.second > object)
-                    x_possible.push_back({object, atual.second});
-                else
-                    x_possible.push_back({atual.second, object});
-            }
-        }
-        else{ //caso contrário, apenas coloca nos ativos
-            active.insert(atual.second);
-        }
-    }
-
-    while(!y_endpoints.empty()){
-        auto atual = y_endpoints.top();
-        y_endpoints.pop();
-
-        if(active.find(atual.second) != active.end()){ //se já estava nos ativos, quer dizer que se fecha bbox e coloca todos pares possíveis entre atual e outros que estão ativos
-
-            active.erase(atual.second);
-
-            for (auto object : active){
-
-                if (atual.second > object)
-                    y_possible.push_back({object, atual.second});
-                else
-                    y_possible.push_back({atual.second, object});
-            }
-        }
-        else{ //caso contrário, apenas coloca nos ativos
-            active.insert(atual.second);
-        }
-    }
-
-    while(!z_endpoints.empty()){
-        auto atual = z_endpoints.top();
-        z_endpoints.pop();
-
-        if(active.find(atual.second) != active.end()){ //se já estava nos ativos, quer dizer que se fecha bbox e coloca todos pares possíveis entre atual e outros que estão ativos
-
-            active.erase(atual.second);
-
-            for (auto object : active){
-                if (atual.second > object)
-                    z_possible.push_back({object, atual.second});
-                else
-                    z_possible.push_back({atual.second, object});
-            }
-        }
-        else{ //caso contrário, apenas coloca nos ativos
-            active.insert(atual.second);
-        }
-    }
-
-    //intersecção entre os 3 vetores de possíveis colisões
-    sort(x_possible.begin(), x_possible.end());
-    sort(y_possible.begin(), y_possible.end());
-    sort(z_possible.begin(), z_possible.end());
-
-    set_intersection(x_possible.begin(), x_possible.end(),
-                    y_possible.begin(), y_possible.end(),
-                    back_inserter(temp));
-
-    set_intersection(temp.begin(), temp.end(),
-                    z_possible.begin(), z_possible.end(),
-                    back_inserter(possibleCollisions));
-
-    return possibleCollisions;
+    return false;
 }
-    */
+
+Sphere BoundingSphere(const ObjModel& model, int id)
+{
+    const auto& verts = model.attrib.vertices;
+    if (verts.empty())
+        return { glm::vec3(0.0f), 0.0f, id };
+
+    glm::vec3 min( FLT_MAX);
+    glm::vec3 max(-FLT_MAX);
+
+    // Pass 1: find AABB
+    for (size_t i = 0; i < verts.size(); i += 3)
+    {
+        glm::vec3 v(verts[i+0], verts[i+1], verts[i+2]);
+        min = glm::min(min, v);
+        max = glm::max(max, v);
+    }
+
+    // Pass 2: center = midpoint of AABB
+    glm::vec3 center = (min + max) * 0.5f;
+
+    // Pass 3: radius = max distance from center
+    float radius = 0.0f;
+    for (size_t i = 0; i < verts.size(); i += 3)
+    {
+        glm::vec3 v(verts[i+0], verts[i+1], verts[i+2]);
+        float dist = glm::length(v - center);
+        if (dist > radius)
+            radius = dist;
+    }
+
+    return { center, radius, id };
+}
+
+bool SphereSphereCollision(const Sphere& s1, const Sphere& s2){
+    float distance = glm::length(s1.center - s2.center);
+    return distance < (s1.radius + s2.radius);
+}

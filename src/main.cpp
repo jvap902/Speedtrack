@@ -40,75 +40,17 @@
 #include <glm/vec4.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-// Headers da biblioteca para carregar modelos obj
-#include <tiny_obj_loader.h>
-
-#include <stb_image.h>
-
 // Headers locais, definidos na pasta "include/"
 #include "utils.h"
 #include "matrices.h"
 
 #include "../include/collision.h"
 
-// Estrutura que representa um modelo geométrico carregado a partir de um
-// arquivo ".obj". Veja https://en.wikipedia.org/wiki/Wavefront_.obj_file .
-struct ObjModel
-{
-    tinyobj::attrib_t                 attrib;
-    std::vector<tinyobj::shape_t>     shapes;
-    std::vector<tinyobj::material_t>  materials;
-
-    // Este construtor lê o modelo de um arquivo utilizando a biblioteca tinyobjloader.
-    // Veja: https://github.com/syoyo/tinyobjloader
-    ObjModel(const char* filename, const char* basepath = NULL, bool triangulate = true)
-    {
-        printf("Carregando objetos do arquivo \"%s\"...\n", filename);
-
-        // Se basepath == NULL, então setamos basepath como o dirname do
-        // filename, para que os arquivos MTL sejam corretamente carregados caso
-        // estejam no mesmo diretório dos arquivos OBJ.
-        std::string fullpath(filename);
-        std::string dirname;
-        if (basepath == NULL)
-        {
-            auto i = fullpath.find_last_of("/");
-            if (i != std::string::npos)
-            {
-                dirname = fullpath.substr(0, i+1);
-                basepath = dirname.c_str();
-            }
-        }
-
-        std::string warn;
-        std::string err;
-        bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, filename, basepath, triangulate);
-
-        if (!err.empty())
-            fprintf(stderr, "\n%s\n", err.c_str());
-
-        if (!ret)
-            throw std::runtime_error("Erro ao carregar modelo.");
-
-        for (size_t shape = 0; shape < shapes.size(); ++shape)
-        {
-            if (shapes[shape].name.empty())
-            {
-                fprintf(stderr,
-                        "*********************************************\n"
-                        "Erro: Objeto sem nome dentro do arquivo '%s'.\n"
-                        "Veja https://www.inf.ufrgs.br/~eslgastal/fcg-faq-etc.html#Modelos-3D-no-formato-OBJ .\n"
-                        "*********************************************\n",
-                    filename);
-                throw std::runtime_error("Objeto sem nome.");
-            }
-            printf("- Objeto '%s'\n", shapes[shape].name.c_str());
-        }
-
-        printf("OK.\n");
-    }
-};
-
+#define SPHERE 0
+#define BUNNY  1
+#define PLANE  2
+#define CAR    3
+#define FUSCA  4
 
 // Declaração de funções utilizadas para pilha de matrizes de modelagem.
 void PushMatrix(glm::mat4 M);
@@ -158,6 +100,8 @@ void ScrollCallback(GLFWwindow* window, double xoffset, double yoffset);
 //Funções novas
 void CarControl();
 void BuildBBoxArray(std::string name);
+void DrawDebugSphere(const Sphere& s, glm::mat4 view, glm::mat4 projection);
+void DrawDebugBox(const AABB& box, glm::mat4 view, glm::mat4 projection);
 
 // Definimos uma estrutura que armazenará dados necessários para renderizar
 // cada objeto da cena virtual.
@@ -241,6 +185,8 @@ bool s_pressed = false;
 bool a_pressed = false;
 bool d_pressed = false;
 
+bool debug_mode = false;
+
 //controle de velocidade
 auto t_prev = glfwGetTime();
 
@@ -252,7 +198,7 @@ float aceleracao_resistencia = -1.2f;
 auto car_angle = 0.0f;
 float rad_car_angle = 0.0f;
 
-auto translate_carro = glm::vec4(1.0f, -0.7f,0.0f,1.0f); //posição inicial do carro
+auto translate_carro = glm::vec4(2.0f, -0.7f,0.0f,1.0f); //posição inicial do carro
 
 //array com bbox
 std::vector<AABB> boxes;
@@ -365,6 +311,7 @@ int main(int argc, char* argv[])
     ObjModel spheremodel("../../data/sphere.obj");
     ComputeNormals(&spheremodel);
     BuildTrianglesAndAddToVirtualScene(&spheremodel);
+    Sphere sphereBoundingSphere = BoundingSphere(spheremodel, SPHERE);
 
     ObjModel bunnymodel("../../data/bunny.obj");
     ComputeNormals(&bunnymodel);
@@ -378,6 +325,7 @@ int main(int argc, char* argv[])
     ObjModel carmodel("../../models/Jeep_Renegade_2016/Jeep_Renegade_2016.obj");
     ComputeNormals(&carmodel);
     BuildTrianglesAndAddToVirtualScene(&carmodel);
+    Sphere carBoundingSphere = BoundingSphere(carmodel, CAR);
 
     ObjModel fuscamodel("../../models/fusca/source/volkswagen_beetle_toy_SF/volkswagen_beetle_toy_SF.obj");
     ComputeNormals(&fuscamodel);
@@ -424,7 +372,9 @@ int main(int argc, char* argv[])
         glUseProgram(g_GpuProgramID);
 
         //atualiza movimento do carro
+        auto last_pos = translate_carro;
         CarControl();
+        auto new_pos = translate_carro;
 
         // Computamos a posição da câmera utilizando coordenadas esféricas.  As
         // variáveis g_CameraDistance, g_CameraPhi, e g_CameraTheta são
@@ -435,9 +385,10 @@ int main(int argc, char* argv[])
         float z = r*cos(g_CameraPhi)*cos(g_CameraTheta);
         float x = r*cos(g_CameraPhi)*sin(g_CameraTheta);
 
+        float carUniformScale = 0.5f;
         auto pos_carro =  Matrix_Translate(translate_carro[0], translate_carro[1], translate_carro[2])
                             * Matrix_Rotate_Y(glm::radians(car_angle))
-                            * Matrix_Scale(0.5f, 0.5f, 0.5f)
+                            * Matrix_Scale(carUniformScale,carUniformScale, carUniformScale)
                             * Matrix_Identity();
 
         // Abaixo definimos as varáveis que efetivamente definem a câmera virtual.
@@ -488,20 +439,43 @@ int main(int argc, char* argv[])
         glUniformMatrix4fv(g_view_uniform       , 1 , GL_FALSE , glm::value_ptr(view));
         glUniformMatrix4fv(g_projection_uniform , 1 , GL_FALSE , glm::value_ptr(projection));
 
-        #define SPHERE 0
-        #define BUNNY  1
-        #define PLANE  2
-        #define CAR    3
-        #define FUSCA  4
-
         bbox_id = 0;
 
         // Desenhamos o modelo da esfera
-        model = Matrix_Translate(-1.0f,0.0f,0.0f);
+        float sphereUniformScale = 1.0f;
+        model = Matrix_Translate(-1.0f,0.0f,0.0f)
+              * Matrix_Scale(sphereUniformScale, sphereUniformScale, sphereUniformScale);
         glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
         glUniform1i(g_object_id_uniform, SPHERE);
         DrawVirtualObject("the_sphere");
         BuildBBoxArray("the_sphere");
+        if (std::find_if(boxes.begin(), boxes.end(), [&](const AABB& box){ return box.id == bbox_id - 1; }) != boxes.end()){
+            glm::vec3 worldCenter = glm::vec3(model * glm::vec4(sphereBoundingSphere.center, 1.0f));
+            float worldRadius = sphereBoundingSphere.radius * sphereUniformScale; // assuming uniform scale
+
+            Sphere worldSphere = { worldCenter, worldRadius, sphereBoundingSphere.id };
+
+            worldCenter = glm::vec3(pos_carro * glm::vec4(carBoundingSphere.center, 1.0f));
+            worldRadius = carBoundingSphere.radius * carUniformScale; // assuming uniform scale
+
+            Sphere worldCar = { worldCenter, worldRadius, carBoundingSphere.id };
+
+            if (SphereSphereCollision(worldCar, worldSphere))
+            {
+                std::cout << "Car hit sphere!" << std::endl;
+                translate_carro = last_pos;
+                velocidade_atual = -velocidade_atual;
+            }
+
+            if(debug_mode){
+                DrawDebugSphere(worldSphere, view, projection);
+                DrawDebugSphere(worldCar, view, projection);
+                
+                for (const auto& box : boxes){
+                    DrawDebugBox(box, view, projection);
+                }
+            }
+        }
 
         // Desenhamos o modelo do coelho
         // model = Matrix_Translate(1.0f,0.0f,0.0f)
@@ -1459,6 +1433,10 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
     if (key == GLFW_KEY_D && action == GLFW_RELEASE){
         d_pressed = false;
     }
+
+    if(key == GLFW_KEY_B && action == GLFW_PRESS){
+        debug_mode = !debug_mode;
+    }
 }
 
 // Definimos o callback para impressão de erros da GLFW no terminal
@@ -1806,13 +1784,14 @@ void CarControl(){
     if (velocidade_atual < -max_speed) velocidade_atual = -max_speed;
 
     //fazer carro girar de acordo com os angulos
-    if(velocidade_atual > 0.5f){
+    auto abs_velocidade = abs(velocidade_atual);
+    if(abs_velocidade > 0.5f){
         //carro deve virar em volta menor se mais devagar
         if (a_pressed){
-            car_angle += turn_speed * t_delta * max_speed / (velocidade_atual+10.0f);
+            car_angle += (turn_speed * t_delta * max_speed / (abs_velocidade+10.0f)) * (velocidade_atual/abs_velocidade); //operação no final para corrigir sentido
         }
         else if (d_pressed){
-            car_angle -= turn_speed * t_delta * max_speed / (velocidade_atual+10.0f); //+10.0f para ter um mínimo de divisão e não aumentar demais car_angle
+            car_angle -= (turn_speed * t_delta * max_speed / (abs_velocidade+10.0f)) * (velocidade_atual/abs_velocidade); //+10.0f para ter um mínimo de divisão e não aumentar demais car_angle
         }
     }
 
@@ -1840,6 +1819,51 @@ void BuildBBoxArray(std::string name){
 
     boxes.push_back(box);
 }
+
+void DrawDebugSphere(const Sphere& s, glm::mat4 view, glm::mat4 projection)
+{
+    // Build model matrix to position and scale the debug sphere
+    glm::mat4 model = Matrix_Translate(s.center.x, s.center.y, s.center.z)
+                    * Matrix_Scale(s.radius, s.radius, s.radius);
+
+    // Set uniforms
+    glUniformMatrix4fv(g_model_uniform, 1, GL_FALSE, glm::value_ptr(model));
+    glUniformMatrix4fv(g_view_uniform, 1, GL_FALSE, glm::value_ptr(view));
+    glUniformMatrix4fv(g_projection_uniform, 1, GL_FALSE, glm::value_ptr(projection));
+
+    // Change color and mode temporarily
+    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);  // Wireframe
+    glDisable(GL_CULL_FACE);                    // So both sides show
+
+    // Draw the sphere mesh you already have
+    DrawVirtualObject("the_sphere");
+
+    // Restore normal rendering
+    glEnable(GL_CULL_FACE);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+}
+
+void DrawDebugBox(const AABB& box, glm::mat4 view, glm::mat4 projection)
+{
+    glm::vec3 size = box.max - box.min;
+    glm::vec3 center = (box.max + box.min) * 0.5f;
+
+    glm::mat4 model = Matrix_Translate(center.x, center.y, center.z)
+                    * Matrix_Scale(size.x * 0.5f, size.y * 0.5f, size.z * 0.5f);
+
+    glUniformMatrix4fv(g_model_uniform, 1, GL_FALSE, glm::value_ptr(model));
+    glUniformMatrix4fv(g_view_uniform, 1, GL_FALSE, glm::value_ptr(view));
+    glUniformMatrix4fv(g_projection_uniform, 1, GL_FALSE, glm::value_ptr(projection));
+
+    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    glDisable(GL_CULL_FACE);
+
+    DrawVirtualObject("the_cube");  // or load a cube.obj for debugging
+
+    glEnable(GL_CULL_FACE);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+}
+
 
 // set makeprg=cd\ ..\ &&\ make\ run\ >/dev/null
 // vim: set spell spelllang=pt_br :
