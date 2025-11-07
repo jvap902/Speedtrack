@@ -49,6 +49,8 @@
 #include "utils.h"
 #include "matrices.h"
 
+#include "../include/collision.h"
+
 // Estrutura que representa um modelo geométrico carregado a partir de um
 // arquivo ".obj". Veja https://en.wikipedia.org/wiki/Wavefront_.obj_file .
 struct ObjModel
@@ -155,6 +157,7 @@ void ScrollCallback(GLFWwindow* window, double xoffset, double yoffset);
 
 //Funções novas
 void CarControl();
+void BuildBBoxArray(std::string name);
 
 // Definimos uma estrutura que armazenará dados necessários para renderizar
 // cada objeto da cena virtual.
@@ -251,6 +254,10 @@ float rad_car_angle = 0.0f;
 
 auto translate_carro = glm::vec4(1.0f, -0.7f,0.0f,1.0f); //posição inicial do carro
 
+//array com bbox
+std::vector<AABB> boxes;
+int bbox_id;
+
 int main(int argc, char* argv[])
 {
     // Inicializamos a biblioteca GLFW, utilizada para criar uma janela do
@@ -297,7 +304,7 @@ int main(int argc, char* argv[])
     GLFWwindow* window = glfwCreateWindow(
         mode->width, mode->height,
         "SpeedTrack",
-        monitor,  // 👈 fullscreen on this monitor
+        monitor,  // fullscreen
         NULL
     );
 
@@ -485,11 +492,14 @@ int main(int argc, char* argv[])
         #define CAR    3
         #define FUSCA  4
 
+        bbox_id = 0;
+
         // Desenhamos o modelo da esfera
         model = Matrix_Translate(-1.0f,0.0f,0.0f);
         glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
         glUniform1i(g_object_id_uniform, SPHERE);
         DrawVirtualObject("the_sphere");
+        BuildBBoxArray("the_sphere");
 
         // Desenhamos o modelo do coelho
         // model = Matrix_Translate(1.0f,0.0f,0.0f)
@@ -506,21 +516,41 @@ int main(int argc, char* argv[])
         glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
         glUniform1i(g_object_id_uniform, PLANE);
         DrawVirtualObject("the_plane");
+        BuildBBoxArray("the_plane");
 
         //jeep renegade
         model =  pos_carro;
         glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
         glUniform1i(g_object_id_uniform, CAR);
         DrawVirtualObject("Mesh1 Group1 Model");
+        BuildBBoxArray("Mesh1 Group1 Model");
+
         DrawVirtualObject("Mesh2 Group2 Model");
+        BuildBBoxArray("Mesh2 Group2 Model");
+        
         DrawVirtualObject("Mesh3 Group3 Model");
+        BuildBBoxArray("Mesh3 Group3 Model");
+        
         DrawVirtualObject("Mesh4 Group4 Model");
+        BuildBBoxArray("Mesh4 Group4 Model");
+        
         DrawVirtualObject("Mesh5 Group5 Model");
+        BuildBBoxArray("Mesh5 Group5 Model");
+        
         DrawVirtualObject("Mesh6 Group6 Model");
+        BuildBBoxArray("Mesh6 Group6 Model");
+        
         DrawVirtualObject("Mesh7 Group7 Model");
+        BuildBBoxArray("Mesh7 Group7 Model");
+        
         DrawVirtualObject("Mesh8 Group8 Model");
+        BuildBBoxArray("Mesh8 Group8 Model");
+        
         DrawVirtualObject("Mesh9 Group9 Model");
+        BuildBBoxArray("Mesh9 Group9 Model");
+        
         DrawVirtualObject("Mesh10 Group10 Model");
+        BuildBBoxArray("Mesh10 Group10 Model");
 
         /*################### Desenhando Koenisegg ################################
         model = Matrix_Translate(1.0f,0.0f,0.0f)
@@ -541,6 +571,9 @@ int main(int argc, char* argv[])
         glUniform1i(g_object_id_uniform, FUSCA);
         DrawVirtualObject("volkswagen_beetle_toy");
         //#########################################################################*/
+
+        //verificando colisões
+        //auto possibleCollisions = SweepAndPrune(boxes);
 
         // Imprimimos na tela os ângulos de Euler que controlam a rotação do
         // terceiro cubo.
@@ -1793,6 +1826,17 @@ void CarControl(){
     translate_carro[0] += forward[0] * velocidade_atual * t_delta;
     translate_carro[2] += forward[2] * velocidade_atual * t_delta;
 
+}
+
+void BuildBBoxArray(std::string name){
+    AABB box;
+    box.min = g_VirtualScene[name].bbox_min + glm::vec3(translate_carro);
+    box.max = g_VirtualScene[name].bbox_max + glm::vec3(translate_carro);
+    box.id = bbox_id;
+
+    bbox_id++;
+
+    boxes.push_back(box);
 }
 
 // set makeprg=cd\ ..\ &&\ make\ run\ >/dev/null

@@ -11,6 +11,7 @@ set(SOURCES
   src/tiny_obj_loader.cpp
   src/glad.c
   src/stb_image.cpp
+  src/collisions.cpp
 
 )
 
