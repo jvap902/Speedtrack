@@ -279,14 +279,27 @@ int main(int argc, char* argv[])
 
     // Criamos uma janela do sistema operacional, com 800 colunas e 600 linhas
     // de pixels, e com título "INF01047 ...".
-    GLFWwindow* window;
-    window = glfwCreateWindow(window_width, window_height, "INF01047 - 578647 - João Vitor Angelo Pereira", NULL, NULL);
-    if (!window)
-    {
-        glfwTerminate();
-        fprintf(stderr, "ERROR: glfwCreateWindow() failed.\n");
-        std::exit(EXIT_FAILURE);
-    }
+    // GLFWwindow* window;
+    // window = glfwCreateWindow(window_width, window_height, "INF01047 - 578647 - João Vitor Angelo Pereira", NULL, NULL);
+    // if (!window)
+    // {
+    //     glfwTerminate();
+    //     fprintf(stderr, "ERROR: glfwCreateWindow() failed.\n");
+    //     std::exit(EXIT_FAILURE);
+    // }
+
+    //tela cheia
+    // Get the primary monitor and its video mode
+    GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+    const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+
+    // Create a fullscreen window using the monitor's resolution
+    GLFWwindow* window = glfwCreateWindow(
+        mode->width, mode->height,
+        "SpeedTrack",
+        monitor,  // 👈 fullscreen on this monitor
+        NULL
+    );
 
     // Definimos a função de callback que será chamada sempre que o usuário
     // pressionar alguma tecla do teclado ...
@@ -311,7 +324,7 @@ int main(int argc, char* argv[])
     // redimensionada, por consequência alterando o tamanho do "framebuffer"
     // (região de memória onde são armazenados os pixels da imagem).
     glfwSetFramebufferSizeCallback(window, FramebufferSizeCallback);
-    FramebufferSizeCallback(window, window_width, window_height); // Forçamos a chamada do callback acima, para definir g_ScreenRatio.
+    FramebufferSizeCallback(window, mode->width, mode->height); // Forçamos a chamada do callback acima, para definir g_ScreenRatio.
 
     // Imprimimos no terminal informações sobre a GPU do sistema
     const GLubyte *vendor      = glGetString(GL_VENDOR);
@@ -1722,10 +1735,10 @@ void CarControl(){
     t_prev = t_now;
 
     // Parâmetros ajustáveis
-    const float max_accel = 8.0f;          // aceleração máxima
-    const float max_speed = 50.0f;          // velocidade máxima
-    const float turn_speed = 80.0f;        // graus por segundo (velocidade de rotação)
-    const float friction = 10.0f;           // desaceleração natural
+    const float max_accel = 10.0f;          // aceleração máxima
+    const float max_speed = 40.0f;          // velocidade máxima
+    const float turn_speed = 50.0f;        // graus por segundo (velocidade de rotação)
+    const float friction = 8.0f;           // desaceleração natural
 
     // Atualiza aceleração
     aceleracao_atual = 0.0f;
@@ -1758,12 +1771,13 @@ void CarControl(){
     if (velocidade_atual < -max_speed) velocidade_atual = -max_speed;
 
     //fazer carro girar de acordo com os angulos
-    if(velocidade_atual > 0.01f){
+    if(velocidade_atual > 0.5f){
+        //carro deve virar em volta menor se mais devagar
         if (a_pressed){
-            car_angle += turn_speed * t_delta * (velocidade_atual != 0 ? (velocidade_atual / max_speed) : 1);
+            car_angle += turn_speed * t_delta * max_speed / (velocidade_atual+10.0f);
         }
         else if (d_pressed){
-            car_angle -= turn_speed * t_delta * (velocidade_atual != 0 ? (velocidade_atual / max_speed) : 1);
+            car_angle -= turn_speed * t_delta * max_speed / (velocidade_atual+10.0f); //+10.0f para ter um mínimo de divisão e não aumentar demais car_angle
         }
     }
 
