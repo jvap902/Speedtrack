@@ -81,4 +81,4 @@ struct ObjModel
 std::vector<std::pair<int, int>> SweepAndPrune(std::vector<AABB>& boxes);
 bool RaySphere(const glm::vec3& rayOrigin, const glm::vec3& rayDir, const Sphere& sphere, float & t_hit);
 Sphere BoundingSphere(const ObjModel& model, int id);
-bool SphereSphereCollision(const Sphere& s1, const Sphere& s2);
+bool SSCollision(const Sphere& s1, const Sphere& s2);

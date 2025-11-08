@@ -1,4 +1,4 @@
-#include "../include/collision.h"
+#include "../include/collisions.h"
 
 struct Endpoint {
     float value;
@@ -113,7 +113,7 @@ Sphere BoundingSphere(const ObjModel& model, int id)
     return { center, radius, id };
 }
 
-bool SphereSphereCollision(const Sphere& s1, const Sphere& s2){
+bool SSCollision(const Sphere& s1, const Sphere& s2){
     float distance = glm::length(s1.center - s2.center);
     return distance < (s1.radius + s2.radius);
 }

@@ -30,6 +30,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <algorithm>
+#include <tuple>
 
 // Headers das bibliotecas OpenGL
 #include <glad/glad.h>   // Criação de contexto OpenGL 3.3
@@ -44,7 +45,7 @@
 #include "utils.h"
 #include "matrices.h"
 
-#include "../include/collision.h"
+#include "../include/collisions.h"
 
 #define SPHERE 0
 #define BUNNY  1
@@ -102,6 +103,8 @@ void CarControl();
 void BuildBBoxArray(std::string name);
 void DrawDebugSphere(const Sphere& s, glm::mat4 view, glm::mat4 projection);
 void DrawDebugBox(const AABB& box, glm::mat4 view, glm::mat4 projection);
+void DrawAllObjects(std::vector<std::tuple<glm::mat4, const char*, int>> objects);
+bool SphereSphereCollision(ObjModel obj1, ObjModel obj2, glm::mat4 object1_model, int object1_id, glm::mat4 object2_model, int object2_id, float object1_uniformScale, float object2_UniformScale, glm::mat4 view, glm::mat4 projection);
 
 // Definimos uma estrutura que armazenará dados necessários para renderizar
 // cada objeto da cena virtual.
@@ -311,7 +314,7 @@ int main(int argc, char* argv[])
     ObjModel spheremodel("../../data/sphere.obj");
     ComputeNormals(&spheremodel);
     BuildTrianglesAndAddToVirtualScene(&spheremodel);
-    Sphere sphereBoundingSphere = BoundingSphere(spheremodel, SPHERE);
+    
 
     ObjModel bunnymodel("../../data/bunny.obj");
     ComputeNormals(&bunnymodel);
@@ -325,7 +328,6 @@ int main(int argc, char* argv[])
     ObjModel carmodel("../../models/Jeep_Renegade_2016/Jeep_Renegade_2016.obj");
     ComputeNormals(&carmodel);
     BuildTrianglesAndAddToVirtualScene(&carmodel);
-    Sphere carBoundingSphere = BoundingSphere(carmodel, CAR);
 
     ObjModel fuscamodel("../../models/fusca/source/volkswagen_beetle_toy_SF/volkswagen_beetle_toy_SF.obj");
     ComputeNormals(&fuscamodel);
@@ -431,7 +433,7 @@ int main(int argc, char* argv[])
             projection = Matrix_Orthographic(l, r, b, t, nearplane, farplane);
         }
 
-        glm::mat4 model = Matrix_Identity(); // Transformação identidade de modelagem
+        std::vector<std::tuple<glm::mat4, const char*, int>> objects;
 
         // Enviamos as matrizes "view" e "projection" para a placa de vídeo
         // (GPU). Veja o arquivo "shader_vertex.glsl", onde estas são
@@ -443,39 +445,11 @@ int main(int argc, char* argv[])
 
         // Desenhamos o modelo da esfera
         float sphereUniformScale = 1.0f;
-        model = Matrix_Translate(-1.0f,0.0f,0.0f)
-              * Matrix_Scale(sphereUniformScale, sphereUniformScale, sphereUniformScale);
-        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-        glUniform1i(g_object_id_uniform, SPHERE);
-        DrawVirtualObject("the_sphere");
+        glm::mat4 sphere_model = Matrix_Translate(-1.0f,0.0f,0.0f) * Matrix_Scale(sphereUniformScale, sphereUniformScale, sphereUniformScale);
+
+        objects.push_back(std::make_tuple(sphere_model, "the_sphere", SPHERE));
+
         BuildBBoxArray("the_sphere");
-        if (std::find_if(boxes.begin(), boxes.end(), [&](const AABB& box){ return box.id == bbox_id - 1; }) != boxes.end()){
-            glm::vec3 worldCenter = glm::vec3(model * glm::vec4(sphereBoundingSphere.center, 1.0f));
-            float worldRadius = sphereBoundingSphere.radius * sphereUniformScale; // assuming uniform scale
-
-            Sphere worldSphere = { worldCenter, worldRadius, sphereBoundingSphere.id };
-
-            worldCenter = glm::vec3(pos_carro * glm::vec4(carBoundingSphere.center, 1.0f));
-            worldRadius = carBoundingSphere.radius * carUniformScale; // assuming uniform scale
-
-            Sphere worldCar = { worldCenter, worldRadius, carBoundingSphere.id };
-
-            if (SphereSphereCollision(worldCar, worldSphere))
-            {
-                std::cout << "Car hit sphere!" << std::endl;
-                translate_carro = last_pos;
-                velocidade_atual = -velocidade_atual;
-            }
-
-            if(debug_mode){
-                DrawDebugSphere(worldSphere, view, projection);
-                DrawDebugSphere(worldCar, view, projection);
-                
-                for (const auto& box : boxes){
-                    DrawDebugBox(box, view, projection);
-                }
-            }
-        }
 
         // Desenhamos o modelo do coelho
         // model = Matrix_Translate(1.0f,0.0f,0.0f)
@@ -487,45 +461,42 @@ int main(int argc, char* argv[])
         // DrawVirtualObject("the_bunny");
 
         //Desenhando plano
-        model = Matrix_Translate(0.0f, -1.0f, 0.0f)
+        glm::mat4 plane_model = Matrix_Translate(0.0f, -1.0f, 0.0f)
                 *Matrix_Scale(100.0f, 1.0f, 100.0f);
-        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-        glUniform1i(g_object_id_uniform, PLANE);
-        DrawVirtualObject("the_plane");
+        objects.push_back(std::make_tuple(plane_model, "the_plane", PLANE));
         BuildBBoxArray("the_plane");
 
         //jeep renegade
-        model =  pos_carro;
-        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-        glUniform1i(g_object_id_uniform, CAR);
-        DrawVirtualObject("Mesh1 Group1 Model");
+        glm::mat4 car_model =  pos_carro;
+        
+        objects.push_back(std::make_tuple(car_model, "Mesh1 Group1 Model", CAR));
         BuildBBoxArray("Mesh1 Group1 Model");
 
-        DrawVirtualObject("Mesh2 Group2 Model");
+        objects.push_back(std::make_tuple(car_model, "Mesh2 Group2 Model", CAR));
         BuildBBoxArray("Mesh2 Group2 Model");
         
-        DrawVirtualObject("Mesh3 Group3 Model");
+        objects.push_back(std::make_tuple(car_model, "Mesh3 Group3 Model", CAR));
         BuildBBoxArray("Mesh3 Group3 Model");
         
-        DrawVirtualObject("Mesh4 Group4 Model");
+        objects.push_back(std::make_tuple(car_model, "Mesh4 Group4 Model", CAR));
         BuildBBoxArray("Mesh4 Group4 Model");
         
-        DrawVirtualObject("Mesh5 Group5 Model");
+        objects.push_back(std::make_tuple(car_model, "Mesh5 Group5 Model", CAR));
         BuildBBoxArray("Mesh5 Group5 Model");
         
-        DrawVirtualObject("Mesh6 Group6 Model");
+        objects.push_back(std::make_tuple(car_model, "Mesh6 Group6 Model", CAR));
         BuildBBoxArray("Mesh6 Group6 Model");
         
-        DrawVirtualObject("Mesh7 Group7 Model");
+        objects.push_back(std::make_tuple(car_model, "Mesh7 Group7 Model", CAR));
         BuildBBoxArray("Mesh7 Group7 Model");
         
-        DrawVirtualObject("Mesh8 Group8 Model");
+        objects.push_back(std::make_tuple(car_model, "Mesh8 Group8 Model", CAR));
         BuildBBoxArray("Mesh8 Group8 Model");
         
-        DrawVirtualObject("Mesh9 Group9 Model");
+        objects.push_back(std::make_tuple(car_model, "Mesh9 Group9 Model", CAR));
         BuildBBoxArray("Mesh9 Group9 Model");
         
-        DrawVirtualObject("Mesh10 Group10 Model");
+        objects.push_back(std::make_tuple(car_model, "Mesh10 Group10 Model", CAR));
         BuildBBoxArray("Mesh10 Group10 Model");
 
         /*################### Desenhando Koenisegg ################################
@@ -547,9 +518,20 @@ int main(int argc, char* argv[])
         glUniform1i(g_object_id_uniform, FUSCA);
         DrawVirtualObject("volkswagen_beetle_toy");
         //#########################################################################*/
-
+        
         //verificando colisões
         auto possibleCollisions = SweepAndPrune(boxes);
+
+        if(SphereSphereCollision(spheremodel, carmodel, sphere_model, SPHERE, car_model, CAR, sphereUniformScale, carUniformScale, view, projection)){
+            translate_carro = last_pos;
+            velocidade_atual = -velocidade_atual*0.6f;
+        }
+
+        
+
+   
+        //desenha todos objetos
+        DrawAllObjects(objects);
 
         // Imprimimos na tela os ângulos de Euler que controlam a rotação do
         // terceiro cubo.
@@ -1864,6 +1846,46 @@ void DrawDebugBox(const AABB& box, glm::mat4 view, glm::mat4 projection)
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 }
 
+void DrawObject(glm::mat4 model, const char* name, int id){
+    glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+    glUniform1i(g_object_id_uniform, id);
+    DrawVirtualObject(name);
+}
+
+void DrawAllObjects(std::vector<std::tuple<glm::mat4, const char*, int>> objects){
+    for (auto e : objects){
+        DrawObject(std::get<0>(e), std::get<1>(e), std::get<2>(e));
+    }
+}
+
+bool SphereSphereCollision(ObjModel obj1, ObjModel obj2, glm::mat4 object1_matrix, int object1_id, glm::mat4 object2_matrix, int object2_id, float object1_uniformScale, float object2_UniformScale, glm::mat4 view, glm::mat4 projection){
+
+    Sphere boundingSphere1 = BoundingSphere(obj1, object1_id);
+    Sphere boundingSphere2 = BoundingSphere(obj2, object2_id);
+
+    glm::vec3 worldCenter = glm::vec3(object1_matrix * glm::vec4(boundingSphere1.center, 1.0f));
+    float worldRadius = boundingSphere1.radius * object1_uniformScale; // assuming uniform scale
+
+    Sphere worldSphere = { worldCenter, worldRadius, boundingSphere1.id };
+
+    worldCenter = glm::vec3(object2_matrix * glm::vec4(boundingSphere2.center, 1.0f));
+    worldRadius = boundingSphere2.radius * object2_UniformScale; // assuming uniform scale
+
+    Sphere worldCar = { worldCenter, worldRadius, boundingSphere2.id };
+
+    if(debug_mode){
+        DrawDebugSphere(worldSphere, view, projection);
+        DrawDebugSphere(worldCar, view, projection);
+    }
+
+    if (SSCollision(worldCar, worldSphere))
+    {
+        return true;
+    }
+
+    return false;
+
+}
 
 // set makeprg=cd\ ..\ &&\ make\ run\ >/dev/null
 // vim: set spell spelllang=pt_br :
