@@ -13,6 +13,9 @@ in vec4 position_model;
 // Coordenadas de textura obtidas do arquivo OBJ (se existirem!)
 in vec2 texcoords;
 
+// Cor do Gouraud Shading
+in vec4 cor_v;
+
 // Matrizes computadas no código C++ e enviadas para a GPU
 uniform mat4 model;
 uniform mat4 view;
@@ -104,7 +107,7 @@ void main()
         //   função 'asin( )'   : seno inverso.
         //   constante M_PI
         //   variável position_model
-
+        /*
         vec4 bbox_center = (bbox_min + bbox_max) / 2.0;
 
         float raio = 1.0;
@@ -119,7 +122,7 @@ void main()
         float phi = asin(pl[1]/raio);
 
         U = (theta + M_PI) / (2.0*M_PI);
-        V = (phi + M_PI/2.0) / M_PI;
+        V = (phi + M_PI/2.0) / M_PI;*/
     }
     else if ( object_id == BUNNY )
     {
@@ -184,13 +187,16 @@ void main()
 
 
     if (object_id == SPHERE){
-         // Obtemos a refletância difusa a partir da leitura da imagem TextureImage0
+        /*
+        // Obtemos a refletância difusa a partir da leitura da imagem TextureImage0
         vec3 Kd0 = texture(TextureImage0, vec2(U,V)).rgb;
 
         // Equação de Iluminação
         float lambert = max(0,dot(n,l));
 
         color.rgb = Kd0 * (lambert + 0.01);
+        */
+        color = cor_v;
 
     }
     else if (object_id == FUSCA){
@@ -222,27 +228,31 @@ void main()
         vec3 phong_specular_term  = Ks*I*max(0, pow(dot(r, v), q)); // PREENCH AQUI o termo especular de Phong
 
         color.rgb = lambert_diffuse_term + phong_specular_term + ambient_term;
+
+
+        // NOTE: Se você quiser fazer o rendering de objetos transparentes, é
+        // necessário:
+        // 1) Habilitar a operação de "blending" de OpenGL logo antes de realizar o
+        //    desenho dos objetos transparentes, com os comandos abaixo no código C++:
+        //      glEnable(GL_BLEND);
+        //      glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        // 2) Realizar o desenho de todos objetos transparentes *após* ter desenhado
+        //    todos os objetos opacos; e
+        // 3) Realizar o desenho de objetos transparentes ordenados de acordo com
+        //    suas distâncias para a câmera (desenhando primeiro objetos
+        //    transparentes que estão mais longe da câmera).
+        // Alpha default = 1 = 100% opaco = 0% transparente
+        color.a = 1;
+
+        // Cor final do fragmento calculada com uma combinação dos termos difuso,
+        // especular, e ambiente. Veja slide 48 do documento Aula_17_e_18_Modelos_de_Iluminacao - RESUMO.pdf e slide 129 do documento Aula_17_e_18_Modelos_de_Iluminacao.pdf.
+
+        // Cor final com correção gamma, considerando monitor sRGB.
+        // Veja https://en.wikipedia.org/w/index.php?title=Gamma_correction&oldid=751281772#Windows.2C_Mac.2C_sRGB_and_TV.2Fvideo_standard_gammas
+
+
     }
 
-    // NOTE: Se você quiser fazer o rendering de objetos transparentes, é
-    // necessário:
-    // 1) Habilitar a operação de "blending" de OpenGL logo antes de realizar o
-    //    desenho dos objetos transparentes, com os comandos abaixo no código C++:
-    //      glEnable(GL_BLEND);
-    //      glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    // 2) Realizar o desenho de todos objetos transparentes *após* ter desenhado
-    //    todos os objetos opacos; e
-    // 3) Realizar o desenho de objetos transparentes ordenados de acordo com
-    //    suas distâncias para a câmera (desenhando primeiro objetos
-    //    transparentes que estão mais longe da câmera).
-    // Alpha default = 1 = 100% opaco = 0% transparente
-    color.a = 1;
-
-    // Cor final do fragmento calculada com uma combinação dos termos difuso,
-    // especular, e ambiente. Veja slide 48 do documento Aula_17_e_18_Modelos_de_Iluminacao - RESUMO.pdf e slide 129 do documento Aula_17_e_18_Modelos_de_Iluminacao.pdf.
-    
-    // Cor final com correção gamma, considerando monitor sRGB.
-    // Veja https://en.wikipedia.org/w/index.php?title=Gamma_correction&oldid=751281772#Windows.2C_Mac.2C_sRGB_and_TV.2Fvideo_standard_gammas
     color.rgb = pow(color.rgb, vec3(1.0,1.0,1.0)/2.2);
 }
 
