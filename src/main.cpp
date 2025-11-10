@@ -47,10 +47,9 @@
 
 #include "../include/collisions.h"
 
-#define SPHERE 0
-#define BUNNY  1
+#define CAR    0
+#define SPHERE 1
 #define PLANE  2
-#define CAR    3
 #define FUSCA  4
 
 // Declaração de funções utilizadas para pilha de matrizes de modelagem.
@@ -100,11 +99,13 @@ void ScrollCallback(GLFWwindow* window, double xoffset, double yoffset);
 
 //Funções novas
 void CarControl();
-void BuildBBoxArray(std::string name);
+void BuildBBoxArray(std::string name, const glm::mat4& modelMatrix, int objectId);
 void DrawDebugSphere(const Sphere& s, glm::mat4 view, glm::mat4 projection);
 void DrawDebugBox(const AABB& box, glm::mat4 view, glm::mat4 projection);
 void DrawAllObjects(std::vector<std::tuple<glm::mat4, const char*, int>> objects);
 bool SphereSphereCollision(ObjModel obj1, ObjModel obj2, glm::mat4 object1_model, int object1_id, glm::mat4 object2_model, int object2_id, float object1_uniformScale, float object2_UniformScale, glm::mat4 view, glm::mat4 projection);
+void TreatCarCollision(glm::mat4 sphere_model_matrix, float sphereUniformScale, glm::mat4 car_model_matrix, std::pair<int,int> collision, glm::vec4 last_pos);
+OBB TransformOBB(const OBB& localBox, const glm::mat4& transform);
 
 // Definimos uma estrutura que armazenará dados necessários para renderizar
 // cada objeto da cena virtual.
@@ -179,6 +180,10 @@ GLint g_bbox_max_uniform;
 GLuint g_NumLoadedTextures = 0;
 
 // ############ novas variáveis ############
+// Caches for local-space collision shapes
+Sphere g_localSphereHull;
+std::vector<OBB> g_localCarHulls;
+
 int window_height = 900;
 int window_width = 1600;
 
@@ -314,11 +319,14 @@ int main(int argc, char* argv[])
     ObjModel spheremodel("../../data/sphere.obj");
     ComputeNormals(&spheremodel);
     BuildTrianglesAndAddToVirtualScene(&spheremodel);
-    
 
-    ObjModel bunnymodel("../../data/bunny.obj");
-    ComputeNormals(&bunnymodel);
-    BuildTrianglesAndAddToVirtualScene(&bunnymodel);
+    ObjModel cubemodel("../../data/cube.obj");
+    ComputeNormals(&cubemodel);
+    BuildTrianglesAndAddToVirtualScene(&cubemodel);
+
+    // ObjModel bunnymodel("../../data/bunny.obj");
+    // ComputeNormals(&bunnymodel);
+    // BuildTrianglesAndAddToVirtualScene(&bunnymodel);
 
     ObjModel planemodel("../../data/plane.obj");
     ComputeNormals(&planemodel);
@@ -332,6 +340,12 @@ int main(int argc, char* argv[])
     ObjModel fuscamodel("../../models/fusca/source/volkswagen_beetle_toy_SF/volkswagen_beetle_toy_SF.obj");
     ComputeNormals(&fuscamodel);
     BuildTrianglesAndAddToVirtualScene(&fuscamodel);
+
+    printf("Building local-space collision hulls...\n");
+    g_localSphereHull = BoundingSphere(spheremodel, SPHERE);
+    // Build local-space OBBs by passing an Identity matrix
+    g_localCarHulls = BuildCompoundHitbox(carmodel, Matrix_Identity(), CAR);
+    printf("Hulls built: 1 sphere, %zu car parts.\n", g_localCarHulls.size());
 
     if ( argc > 1 )
     {
@@ -388,7 +402,7 @@ int main(int argc, char* argv[])
         float x = r*cos(g_CameraPhi)*sin(g_CameraTheta);
 
         float carUniformScale = 0.5f;
-        auto pos_carro =  Matrix_Translate(translate_carro[0], translate_carro[1], translate_carro[2])
+        auto car_model_matrix =  Matrix_Translate(translate_carro[0], translate_carro[1], translate_carro[2])
                             * Matrix_Rotate_Y(glm::radians(car_angle))
                             * Matrix_Scale(carUniformScale,carUniformScale, carUniformScale)
                             * Matrix_Identity();
@@ -396,7 +410,7 @@ int main(int argc, char* argv[])
         // Abaixo definimos as varáveis que efetivamente definem a câmera virtual.
         // camera deve se mexer junto com o carro
         glm::vec4 camera_position_c  = glm::vec4(x,y,z,1.0f) + glm::vec4(translate_carro[0], translate_carro[1], translate_carro[2], 0.0f); // Ponto "c", centro da câmera
-        glm::vec4 camera_lookat_l    = pos_carro[3]; // Ponto "l", para onde a câmera (look-at) estará sempre olhando
+        glm::vec4 camera_lookat_l    = car_model_matrix[3]; // Ponto "l", para onde a câmera (look-at) estará sempre olhando
         glm::vec4 camera_view_vector = camera_lookat_l - camera_position_c; // Vetor "view", sentido para onde a câmera está virada
         glm::vec4 camera_up_vector   = glm::vec4(0.0f,1.0f,0.0f,0.0f); // Vetor "up" fixado para apontar para o "céu" (eito Y global)
 
@@ -445,11 +459,8 @@ int main(int argc, char* argv[])
 
         // Desenhamos o modelo da esfera
         float sphereUniformScale = 1.0f;
-        glm::mat4 sphere_model = Matrix_Translate(-1.0f,0.0f,0.0f) * Matrix_Scale(sphereUniformScale, sphereUniformScale, sphereUniformScale);
-
-        objects.push_back(std::make_tuple(sphere_model, "the_sphere", SPHERE));
-
-        BuildBBoxArray("the_sphere");
+        glm::mat4 sphere_model_matrix = Matrix_Translate(-1.0f,0.0f,0.0f) * Matrix_Scale(sphereUniformScale, sphereUniformScale, sphereUniformScale);
+        BuildBBoxArray("the_sphere", sphere_model_matrix, SPHERE);
 
         // Desenhamos o modelo do coelho
         // model = Matrix_Translate(1.0f,0.0f,0.0f)
@@ -463,41 +474,19 @@ int main(int argc, char* argv[])
         //Desenhando plano
         glm::mat4 plane_model = Matrix_Translate(0.0f, -1.0f, 0.0f)
                 *Matrix_Scale(100.0f, 1.0f, 100.0f);
-        objects.push_back(std::make_tuple(plane_model, "the_plane", PLANE));
-        BuildBBoxArray("the_plane");
-
-        //jeep renegade
-        glm::mat4 car_model =  pos_carro;
-        
-        objects.push_back(std::make_tuple(car_model, "Mesh1 Group1 Model", CAR));
-        BuildBBoxArray("Mesh1 Group1 Model");
-
-        objects.push_back(std::make_tuple(car_model, "Mesh2 Group2 Model", CAR));
-        BuildBBoxArray("Mesh2 Group2 Model");
-        
-        objects.push_back(std::make_tuple(car_model, "Mesh3 Group3 Model", CAR));
-        BuildBBoxArray("Mesh3 Group3 Model");
-        
-        objects.push_back(std::make_tuple(car_model, "Mesh4 Group4 Model", CAR));
-        BuildBBoxArray("Mesh4 Group4 Model");
-        
-        objects.push_back(std::make_tuple(car_model, "Mesh5 Group5 Model", CAR));
-        BuildBBoxArray("Mesh5 Group5 Model");
-        
-        objects.push_back(std::make_tuple(car_model, "Mesh6 Group6 Model", CAR));
-        BuildBBoxArray("Mesh6 Group6 Model");
-        
-        objects.push_back(std::make_tuple(car_model, "Mesh7 Group7 Model", CAR));
-        BuildBBoxArray("Mesh7 Group7 Model");
-        
-        objects.push_back(std::make_tuple(car_model, "Mesh8 Group8 Model", CAR));
-        BuildBBoxArray("Mesh8 Group8 Model");
-        
-        objects.push_back(std::make_tuple(car_model, "Mesh9 Group9 Model", CAR));
-        BuildBBoxArray("Mesh9 Group9 Model");
-        
-        objects.push_back(std::make_tuple(car_model, "Mesh10 Group10 Model", CAR));
-        BuildBBoxArray("Mesh10 Group10 Model");
+            BuildBBoxArray("the_plane", plane_model, PLANE);
+                
+            //jeep renegade, bboxes
+            BuildBBoxArray("Mesh1 Group1 Model", car_model_matrix, CAR);
+            BuildBBoxArray("Mesh2 Group2 Model", car_model_matrix, CAR);
+            BuildBBoxArray("Mesh3 Group3 Model", car_model_matrix, CAR);
+            BuildBBoxArray("Mesh4 Group4 Model", car_model_matrix, CAR);
+            BuildBBoxArray("Mesh5 Group5 Model", car_model_matrix, CAR);
+            BuildBBoxArray("Mesh6 Group6 Model", car_model_matrix, CAR);
+            BuildBBoxArray("Mesh7 Group7 Model", car_model_matrix, CAR);
+            BuildBBoxArray("Mesh8 Group8 Model", car_model_matrix, CAR);
+            BuildBBoxArray("Mesh9 Group9 Model", car_model_matrix, CAR);
+            BuildBBoxArray("Mesh10 Group10 Model", car_model_matrix, CAR);
 
         /*################### Desenhando Koenisegg ################################
         model = Matrix_Translate(1.0f,0.0f,0.0f)
@@ -522,13 +511,29 @@ int main(int argc, char* argv[])
         //verificando colisões
         auto possibleCollisions = SweepAndPrune(boxes);
 
-        if(SphereSphereCollision(spheremodel, carmodel, sphere_model, SPHERE, car_model, CAR, sphereUniformScale, carUniformScale, view, projection)){
-            translate_carro = last_pos;
-            velocidade_atual = -velocidade_atual*0.6f;
+        // if(SphereSphereCollision(spheremodel, carmodel, sphere_model_matrix, SPHERE, car_model_matrix, CAR, sphereUniformScale, carUniformScale, view, projection)){
+        //     translate_carro = last_pos;
+        //     velocidade_atual = -velocidade_atual*0.6f;
+        // }
+
+        for (auto collision : possibleCollisions){
+            if(collision.first == CAR)
+                TreatCarCollision(sphere_model_matrix, sphereUniformScale, car_model_matrix, collision, last_pos);
         }
 
-        
-
+        //vetor de objetos a serem desenhados, embaixo pois podem sofrer alteração com colisões
+        objects.push_back(std::make_tuple(sphere_model_matrix, "the_sphere", SPHERE));
+        objects.push_back(std::make_tuple(plane_model, "the_plane", PLANE));
+        objects.push_back(std::make_tuple(car_model_matrix, "Mesh1 Group1 Model", CAR));
+        objects.push_back(std::make_tuple(car_model_matrix, "Mesh2 Group2 Model", CAR));
+        objects.push_back(std::make_tuple(car_model_matrix, "Mesh3 Group3 Model", CAR));
+        objects.push_back(std::make_tuple(car_model_matrix, "Mesh4 Group4 Model", CAR));
+        objects.push_back(std::make_tuple(car_model_matrix, "Mesh5 Group5 Model", CAR));
+        objects.push_back(std::make_tuple(car_model_matrix, "Mesh6 Group6 Model", CAR));
+        objects.push_back(std::make_tuple(car_model_matrix, "Mesh7 Group7 Model", CAR));
+        objects.push_back(std::make_tuple(car_model_matrix, "Mesh8 Group8 Model", CAR));
+        objects.push_back(std::make_tuple(car_model_matrix, "Mesh9 Group9 Model", CAR));
+        objects.push_back(std::make_tuple(car_model_matrix, "Mesh10 Group10 Model", CAR));
    
         //desenha todos objetos
         DrawAllObjects(objects);
@@ -1244,7 +1249,8 @@ void CursorPosCallback(GLFWwindow* window, double xpos, double ypos)
     g_CameraTheta -= 0.01f*dx;
     g_CameraPhi   += 0.01f*dy;
     // Em coordenadas esféricas, o ângulo phi deve ficar entre -pi/2 e +pi/2.
-    float phimax = 3.141592f/2;
+    const float epsilon = 0.0174533f * 5.0f;
+    float phimax = 3.141592f/2 - epsilon;
     float phimin = -phimax;
     if (g_CameraPhi > phimax)
         g_CameraPhi = phimax;
@@ -1791,13 +1797,40 @@ void CarControl(){
 
 }
 
-void BuildBBoxArray(std::string name){
-    AABB box;
-    box.min = g_VirtualScene[name].bbox_min + glm::vec3(translate_carro);
-    box.max = g_VirtualScene[name].bbox_max + glm::vec3(translate_carro);
-    box.id = bbox_id;
+void BuildBBoxArray(std::string name, const glm::mat4& modelMatrix, int objectId){
+    const auto& obj = g_VirtualScene[name];
 
-    bbox_id++;
+    // Local-space AABB corners
+    glm::vec3 minLocal = obj.bbox_min;
+    glm::vec3 maxLocal = obj.bbox_max;
+
+    glm::vec3 corners[8] = {
+        {minLocal.x, minLocal.y, minLocal.z},
+        {maxLocal.x, minLocal.y, minLocal.z},
+        {minLocal.x, maxLocal.y, minLocal.z},
+        {minLocal.x, minLocal.y, maxLocal.z},
+        {maxLocal.x, maxLocal.y, minLocal.z},
+        {minLocal.x, maxLocal.y, maxLocal.z},
+        {maxLocal.x, minLocal.y, maxLocal.z},
+        {maxLocal.x, maxLocal.y, maxLocal.z}
+    };
+
+    glm::vec3 worldMin(FLT_MAX);
+    glm::vec3 worldMax(-FLT_MAX);
+
+    // Transform all corners by model matrix and recompute world AABB
+    for (auto& c : corners)
+    {
+        glm::vec4 transformed = modelMatrix * glm::vec4(c, 1.0f);
+        worldMin = glm::min(worldMin, glm::vec3(transformed));
+        worldMax = glm::max(worldMax, glm::vec3(transformed));
+    }
+
+    AABB box;
+    box.min = worldMin;
+    box.max = worldMax;
+    box.id = bbox_id++;
+    box.objectId = objectId;
 
     boxes.push_back(box);
 }
@@ -1885,6 +1918,75 @@ bool SphereSphereCollision(ObjModel obj1, ObjModel obj2, glm::mat4 object1_matri
 
     return false;
 
+}
+
+void TreatCarCollision(glm::mat4 sphere_model_matrix, float sphereUniformScale, glm::mat4 car_model_matrix, std::pair<int,int> collision, glm::vec4 last_pos)
+{
+    if(collision.second == SPHERE)
+    {
+        // 1. Get World-Space Sphere (from cached local hull)
+        glm::vec3 worldCenter = glm::vec3(sphere_model_matrix * glm::vec4(g_localSphereHull.center, 1.0f));
+        float worldRadius = g_localSphereHull.radius * sphereUniformScale;
+        Sphere worldSphere = { worldCenter, worldRadius, g_localSphereHull.id };
+
+        glm::vec3 largestMtv(0.0f);
+        bool hasCollided = false;
+
+        // 2. Get World-Space Car Hitboxes (from cached local hulls)
+        for (const auto& localBox : g_localCarHulls)
+        {
+            // Transform local OBB to world OBB
+            OBB worldBox = TransformOBB(localBox, car_model_matrix);
+            
+            glm::vec3 mtv;
+
+            if (CHitboxSphereCollision(worldBox, worldSphere, mtv))
+            {
+                hasCollided = true;
+                // We want to find the collision that causes the *largest* pushback
+                if (glm::length(mtv) > glm::length(largestMtv))
+                {
+                    largestMtv = mtv;
+                }
+            }
+        }
+
+        // 3. Apply the new collision response
+        if (hasCollided)
+        {
+            // Apply the pushback vector to the car's global position
+            translate_carro.x += largestMtv.x;
+            translate_carro.y += largestMtv.y;
+            translate_carro.z += largestMtv.z;
+
+            // STOP the car's velocity to prevent sinking/jitter.
+            // This is the most important part for fixing the "slow ghosting".
+            velocidade_atual = -velocidade_atual*0.6f;
+        }
+    }
+
+}
+
+// Helper function to transform a local OBB into a world OBB
+OBB TransformOBB(const OBB& localBox, const glm::mat4& transform)
+{
+    OBB worldBox;
+    
+    // Transform center
+    worldBox.center = glm::vec3(transform * glm::vec4(localBox.center, 1.0f));
+    worldBox.id = localBox.id;
+
+    // Transform axes (assumes local axes are 1,0,0 etc.)
+    worldBox.axis[0] = glm::normalize(glm::vec3(transform[0])); // X-axis
+    worldBox.axis[1] = glm::normalize(glm::vec3(transform[1])); // Y-axis
+    worldBox.axis[2] = glm::normalize(glm::vec3(transform[2])); // Z-axis
+
+    // Apply scale from the transform to the halfSize
+    // (This assumes uniform scale, which you are using)
+    float scale = glm::length(glm::vec3(transform[0]));
+    worldBox.halfSize = localBox.halfSize * scale;
+
+    return worldBox;
 }
 
 // set makeprg=cd\ ..\ &&\ make\ run\ >/dev/null

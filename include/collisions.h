@@ -9,13 +9,22 @@
 struct AABB {
     glm::vec3 min;
     glm::vec3 max;
-    int id; // optional: useful for debugging (e.g., "car", "tree")
+    int id;
+    int objectId;
 };
 
 //para fazer intersecção raio-esfera
 struct Sphere {
     glm::vec3 center;
     float radius;
+    int id;
+};
+
+struct OBB {
+    glm::vec3 center;     // Center point of the box
+    glm::vec3 halfSize;  // Half-lengths along each local axis
+    glm::mat3 orientation; // Local axes (each column is a direction vector)
+    glm::vec3 axis[3];
     int id;
 };
 
@@ -78,7 +87,9 @@ struct ObjModel
 };
 
 // Returns pairs of indices (or object names) that may collide
-std::vector<std::pair<int, int>> SweepAndPrune(std::vector<AABB>& boxes);
+std::set<std::pair<int, int>> SweepAndPrune(std::vector<AABB>& boxes);
 bool RaySphere(const glm::vec3& rayOrigin, const glm::vec3& rayDir, const Sphere& sphere, float & t_hit);
 Sphere BoundingSphere(const ObjModel& model, int id);
 bool SSCollision(const Sphere& s1, const Sphere& s2);
+std::vector<OBB> BuildCompoundHitbox(const ObjModel& model, const glm::mat4& transform, int id);
+bool CHitboxSphereCollision(const OBB& box, const Sphere& sphere, glm::vec3& mtv);
