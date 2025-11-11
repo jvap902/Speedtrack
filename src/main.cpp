@@ -194,6 +194,7 @@ bool a_pressed = false;
 bool d_pressed = false;
 
 bool debug_mode = false;
+bool camera_mode = false;
 
 //controle de velocidade
 auto t_prev = glfwGetTime();
@@ -364,6 +365,7 @@ int main(int argc, char* argv[])
     glCullFace(GL_BACK);
     glFrontFace(GL_CCW);
 
+    glm::vec4 camera_position_c = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
     // Ficamos em um loop infinito, renderizando, até que o usuário feche a janela
     while (!glfwWindowShouldClose(window))
     {
@@ -387,32 +389,74 @@ int main(int argc, char* argv[])
         // os shaders de vértice e fragmentos).
         glUseProgram(g_GpuProgramID);
 
-        //atualiza movimento do carro
-        auto last_pos = translate_carro;
-        CarControl();
-        auto new_pos = translate_carro;
-
         // Computamos a posição da câmera utilizando coordenadas esféricas.  As
         // variáveis g_CameraDistance, g_CameraPhi, e g_CameraTheta são
         // controladas pelo mouse do usuário. Veja as funções CursorPosCallback()
         // e ScrollCallback().
-        float r = g_CameraDistance;
-        float y = r*sin(g_CameraPhi);
-        float z = r*cos(g_CameraPhi)*cos(g_CameraTheta);
-        float x = r*cos(g_CameraPhi)*sin(g_CameraTheta);
+        float x, y, z;
+
+        glm::vec4 camera_lookat_l;
+        glm::vec4 camera_view_vector;
+        glm::vec4 camera_up_vector;
 
         float carUniformScale = 0.5f;
-        auto car_model_matrix =  Matrix_Translate(translate_carro[0], translate_carro[1], translate_carro[2])
-                            * Matrix_Rotate_Y(glm::radians(car_angle))
-                            * Matrix_Scale(carUniformScale,carUniformScale, carUniformScale)
-                            * Matrix_Identity();
+        glm::mat4 car_model_matrix = Matrix_Translate(translate_carro[0], translate_carro[1], translate_carro[2])
+                                * Matrix_Rotate_Y(glm::radians(car_angle))
+                                * Matrix_Scale(carUniformScale,carUniformScale, carUniformScale)
+                                * Matrix_Identity();
+        auto last_pos = translate_carro;
 
-        // Abaixo definimos as varáveis que efetivamente definem a câmera virtual.
-        // camera deve se mexer junto com o carro
-        glm::vec4 camera_position_c  = glm::vec4(x,y,z,1.0f) + glm::vec4(translate_carro[0], translate_carro[1], translate_carro[2], 0.0f); // Ponto "c", centro da câmera
-        glm::vec4 camera_lookat_l    = car_model_matrix[3]; // Ponto "l", para onde a câmera (look-at) estará sempre olhando
-        glm::vec4 camera_view_vector = camera_lookat_l - camera_position_c; // Vetor "view", sentido para onde a câmera está virada
-        glm::vec4 camera_up_vector   = glm::vec4(0.0f,1.0f,0.0f,0.0f); // Vetor "up" fixado para apontar para o "céu" (eito Y global)
+        if(camera_mode){ //caso seja camera livre
+            y = sin(g_CameraPhi);
+            z = cos(g_CameraPhi)*cos(g_CameraTheta);
+            x = cos(g_CameraPhi)*sin(g_CameraTheta);
+
+            glm::vec4 camera_view_vector = glm::normalize(glm::vec4(x, y, z, 0.0f));
+            glm::vec4 camera_up_vector = glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
+
+
+            glm::vec4 w = -camera_view_vector / norm(camera_view_vector);
+            glm::vec4 u = crossproduct(camera_up_vector,w)/norm(crossproduct(camera_up_vector,w));
+
+            // Normalizamos os vetores u e w
+            w = w / norm(w);
+            u = u / norm(u);
+
+            float camera_speed = 0.1f;
+
+            glm::vec4 v = crossproduct(w,u);
+
+
+            if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+                camera_position_c += -w * camera_speed;
+            if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+                camera_position_c += w * camera_speed;
+            if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+                camera_position_c += -u * camera_speed;
+            if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+                camera_position_c += u * camera_speed;
+        }
+        else{
+            float r = g_CameraDistance;
+            y = r*sin(g_CameraPhi);
+            z = r*cos(g_CameraPhi)*cos(g_CameraTheta);
+            x = r*cos(g_CameraPhi)*sin(g_CameraTheta);
+
+            //atualiza movimento do carro
+            CarControl();
+
+            car_model_matrix =  Matrix_Translate(translate_carro[0], translate_carro[1], translate_carro[2])
+                                * Matrix_Rotate_Y(glm::radians(car_angle))
+                                * Matrix_Scale(carUniformScale,carUniformScale, carUniformScale)
+                                * Matrix_Identity();
+
+            // Abaixo definimos as varáveis que efetivamente definem a câmera virtual.
+            // camera deve se mexer junto com o carro
+            camera_position_c  = glm::vec4(x,y,z,1.0f) + glm::vec4(translate_carro[0], translate_carro[1], translate_carro[2], 0.0f); // Ponto "c", centro da câmera
+            camera_lookat_l    = car_model_matrix[3]; // Ponto "l", para onde a câmera (look-at) estará sempre olhando
+            camera_view_vector = camera_lookat_l - camera_position_c; // Vetor "view", sentido para onde a câmera está virada
+            camera_up_vector   = glm::vec4(0.0f,1.0f,0.0f,0.0f); // Vetor "up" fixado para apontar para o "céu" (eito Y global)
+        }        
 
         // Computamos a matriz "View" utilizando os parâmetros da câmera para
         // definir o sistema de coordenadas da câmera.  Veja slides 2-14, 184-190 e 236-242 do documento Aula_08_Sistemas_de_Coordenadas.pdf.
@@ -1422,8 +1466,12 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
         d_pressed = false;
     }
 
-    if(key == GLFW_KEY_B && action == GLFW_PRESS){
+    if (key == GLFW_KEY_B && action == GLFW_PRESS){
         debug_mode = !debug_mode;
+    }
+
+    if (key == GLFW_KEY_V && action == GLFW_PRESS){
+        camera_mode = !camera_mode;
     }
 }
 
