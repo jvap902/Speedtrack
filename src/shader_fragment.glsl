@@ -19,10 +19,9 @@ uniform mat4 view;
 uniform mat4 projection;
 
 // Identificador que define qual objeto está sendo desenhado no momento
-#define SPHERE 0
-#define BUNNY  1
+#define CAR  0
 #define PLANE  2
-#define CAR  3
+#define SPHERE 1
 #define FUSCA  4
 uniform int object_id;
 
@@ -120,15 +119,6 @@ void main()
 
         U = (theta + M_PI) / (2.0*M_PI);
         V = (phi + M_PI/2.0) / M_PI;
-    }
-    else if ( object_id == BUNNY )
-    {
-        // PREENCHA AQUI
-        // Propriedades espectrais do coelho
-        Kd = vec3(0.08,0.4,0.8);
-        Ks = vec3(0.8,0.8,0.8);
-        Ka = vec3(0.04,0.2,0.4);
-        q = 32.0;
     }
     else if ( object_id == PLANE )
     {
