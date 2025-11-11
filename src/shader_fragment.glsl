@@ -196,7 +196,7 @@ void main()
 
         color.rgb = Kd0 * (lambert + 0.01);
         */
-        color = cor_v;
+        color = cor_v; //cor_v*Kd0
 
     }
     else if (object_id == FUSCA){
