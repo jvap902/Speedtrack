@@ -38,6 +38,10 @@ uniform sampler2D TextureImage4;
 uniform sampler2D TextureImage5;
 uniform sampler2D TextureImage6;
 
+// Novo atributo in para Gouraud Shading da esfera
+in vec4 cor_v;
+in vec2 sphere_texcoords;
+
 // O valor de saída ("out") de um Fragment Shader é a cor final do fragmento.
 out vec4 color;
 
@@ -89,38 +93,8 @@ void main()
     vec3 Ka; // Refletância ambiente
     float q; // Expoente especular para o modelo de iluminação de Phong
 
-    if ( object_id == SPHERE )
-    {
-        // PREENCHA AQUI as coordenadas de textura da esfera, computadas com
-        // projeção esférica EM COORDENADAS DO MODELO. Utilize como referência
-        // o slides 134-150 do documento Aula_20_Mapeamento_de_Texturas.pdf.
-        // A esfera que define a projeção deve estar centrada na posição
-        // "bbox_center" definida abaixo.
 
-        // Você deve utilizar:
-        //   função 'length( )' : comprimento Euclidiano de um vetor
-        //   função 'atan( , )' : arcotangente. Veja https://en.wikipedia.org/wiki/Atan2.
-        //   função 'asin( )'   : seno inverso.
-        //   constante M_PI
-        //   variável position_model
-
-        vec4 bbox_center = (bbox_min + bbox_max) / 2.0;
-
-        float raio = 1.0;
-
-        vec4 pc = normalize(position_model - bbox_center);
-
-        vec4 pl = bbox_center + raio*pc;
-
-        vec4 vecp = pl - bbox_center;
-
-        float theta = atan(pl[0], pl[2]);
-        float phi = asin(pl[1]/raio);
-
-        U = (theta + M_PI) / (2.0*M_PI);
-        V = (phi + M_PI/2.0) / M_PI;
-    }
-    else if ( object_id == PLANE )
+    if ( object_id == PLANE )
     {
 
         // O plane.obj não tem texcoords. Geramos proceduralmente.
@@ -137,7 +111,7 @@ void main()
     }
     else if ( object_id == FUSCA)
     {
-        
+
         // PREENCHA AQUI as coordenadas de textura do coelho, computadas com
         // projeção planar XY em COORDENADAS DO MODELO. Utilize como referência
         // o slides 99-104 do documento Aula_20_Mapeamento_de_Texturas.pdf,
@@ -163,25 +137,20 @@ void main()
     }
     else if ( object_id == CAR )
     {
-    vec3 texColor = texture(TextureImage3, texcoords).rgb;
+        vec3 texColor = texture(TextureImage3, texcoords).rgb;
 
-    // Coeficientes espectrais derivados da textura
-    Kd = texColor;                  // Difusa baseada na textura
-    Ka = texColor * 0.3;            // Ambiente mais fraco
-    Ks = vec3(0.3, 0.3, 0.3);       // Reflexão especular leve
-    q  = 64.0;                      // Brilho moderado
+        // Coeficientes espectrais derivados da textura
+        Kd = texColor;                  // Difusa baseada na textura
+        Ka = texColor * 0.3;            // Ambiente mais fraco
+        Ks = vec3(0.3, 0.3, 0.3);       // Reflexão especular leve
+        q  = 64.0;                      // Brilho moderado
     }
 
-
+    // Esfera utiliza Gouraud Shading
     if (object_id == SPHERE){
-         // Obtemos a refletância difusa a partir da leitura da imagem TextureImage0
-        vec3 Kd0 = texture(TextureImage0, vec2(U,V)).rgb;
-
-        // Equação de Iluminação
-        float lambert = max(0,dot(n,l));
-
-        color.rgb = Kd0 * (lambert + 0.01);
-
+        // Obtemos a refletância difusa a partir da leitura da imagem TextureImage0
+        vec3 Kd0 = texture(TextureImage0, sphere_texcoords).rgb;
+        color.rgb = Kd0 * cor_v.rgb;
     }
     else if (object_id == FUSCA){
         vec3 Kd0 = texture(TextureImage3, vec2(U, V)).rgb; // difusa
@@ -214,25 +183,6 @@ void main()
         color.rgb = lambert_diffuse_term + phong_specular_term + ambient_term;
     }
 
-    // NOTE: Se você quiser fazer o rendering de objetos transparentes, é
-    // necessário:
-    // 1) Habilitar a operação de "blending" de OpenGL logo antes de realizar o
-    //    desenho dos objetos transparentes, com os comandos abaixo no código C++:
-    //      glEnable(GL_BLEND);
-    //      glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    // 2) Realizar o desenho de todos objetos transparentes *após* ter desenhado
-    //    todos os objetos opacos; e
-    // 3) Realizar o desenho de objetos transparentes ordenados de acordo com
-    //    suas distâncias para a câmera (desenhando primeiro objetos
-    //    transparentes que estão mais longe da câmera).
-    // Alpha default = 1 = 100% opaco = 0% transparente
     color.a = 1;
-
-    // Cor final do fragmento calculada com uma combinação dos termos difuso,
-    // especular, e ambiente. Veja slide 48 do documento Aula_17_e_18_Modelos_de_Iluminacao - RESUMO.pdf e slide 129 do documento Aula_17_e_18_Modelos_de_Iluminacao.pdf.
-    
-    // Cor final com correção gamma, considerando monitor sRGB.
-    // Veja https://en.wikipedia.org/w/index.php?title=Gamma_correction&oldid=751281772#Windows.2C_Mac.2C_sRGB_and_TV.2Fvideo_standard_gammas
     color.rgb = pow(color.rgb, vec3(1.0,1.0,1.0)/2.2);
 }
-

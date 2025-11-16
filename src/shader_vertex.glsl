@@ -11,6 +11,20 @@ uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
 
+// Precisamos que o Vertex Shader também conheça esses dados
+uniform int object_id;
+uniform vec4 bbox_min;
+uniform vec4 bbox_max;
+
+// Samplers de textura (apenas os que precisamos aqui)
+uniform sampler2D TextureImage0; // Textura da esfera
+
+// Constantes
+#define M_PI   3.14159265358979323846
+#define M_PI_2 1.57079632679489661923
+
+#define SPHERE 1
+
 // Atributos de vértice que serão gerados como saída ("out") pelo Vertex Shader.
 // ** Estes serão interpolados pelo rasterizador! ** gerando, assim, valores
 // para cada fragmento, os quais serão recebidos como entrada pelo Fragment
@@ -19,6 +33,10 @@ out vec4 position_world;
 out vec4 position_model;
 out vec4 normal;
 out vec2 texcoords;
+
+// Novo atributo out para Gouraud Shading da esfera
+out vec4 cor_v;
+out vec2 sphere_texcoords;
 
 void main()
 {
@@ -63,5 +81,81 @@ void main()
 
     // Coordenadas de textura obtidas do arquivo OBJ (se existirem!)
     texcoords = texture_coefficients;
+
+    // Inicializar cor_v em -1 pois isso vai determinar se será usado Gouraud Shading ou Phong Shading
+    // no fragment_shader
+    cor_v = vec4(-1.0, -1.0, -1.0, 0.0);
+    sphere_texcoords = vec2(0.0, 0.0);
+
+    //Cálculo do Gouraud Shading
+    if(object_id == SPHERE) {
+        // Obtemos a posição da câmera utilizando a inversa da matriz que define o
+        // sistema de coordenadas da câmera.
+        vec4 origin = vec4(0.0, 0.0, 0.0, 1.0);
+        vec4 camera_position = inverse(view) * origin;
+
+        // O fragmento atual é coberto por um ponto que percente à superfície de um
+        // dos objetos virtuais da cena. Este ponto, p, possui uma posição no
+        // sistema de coordenadas global (World coordinates). Esta posição é obtida
+        // através da interpolação, feita pelo rasterizador, da posição de cada
+        // vértice.
+        vec4 p = position_world;
+
+        // Normal do fragmento atual, interpolada pelo rasterizador a partir das
+        // normais de cada vértice.
+        vec4 n = normalize(normal);
+
+        vec4 light_source_position = vec4(0.0, 2.0, 1.0, 1.0);
+        vec4 light_direction = normalize(vec4(0.0, 1.0, 0.0, 0.0));
+
+        float alpha = radians(30.0);
+
+        float intensity = 1;
+
+        // Vetor que define o sentido da fonte de luz em relação ao ponto atual.
+        vec4 l = normalize(light_source_position-p);
+
+        // Vetor que define o sentido da câmera em relação ao ponto atual.
+        vec4 v = normalize(camera_position - p);
+
+        // Vetor que define o sentido da reflexão especular ideal.
+        vec4 r = -l + 2*n*(dot(n, l));
+
+        // 2. Calcular Coordenadas UV da Esfera (EXATAMENTE como no fragment shader)
+        vec4 bbox_center = (bbox_min + bbox_max) / 2.0;
+        float raio = 1.0;
+        vec4 pc = normalize(position_model - bbox_center);
+        vec4 pl = bbox_center + raio*pc;
+        vec4 vecp = pl - bbox_center;
+        float theta = atan(pl[0], pl[2]);
+        float phi = asin(pl[1]/raio);
+
+        float U = (theta + M_PI) / (2.0*M_PI);
+        float V = (phi + M_PI/2.0) / M_PI;
+
+        sphere_texcoords = vec2(U, V); // U e V que serão passadas para a leitura da textura no shader_fragment
+
+        vec3 Kd = vec3(1.0f, 1.0f, 1.0f);
+        vec3 Ks = vec3(0.1f,0.1f,0.1f);
+        vec3 Ka = Kd/2;
+        float q = 1.0;
+
+        vec3 I = vec3(1.0f,1.0f,1.0f);
+
+        // Espectro da luz ambiente
+        vec3 Ia = vec3(0.2f, 0.2f, 0.2f);
+
+        // Termo difuso utilizando a lei dos cossenos de Lambert
+        vec3 lambert_diffuse_term = Kd*I*max(0, dot(n, l));
+
+        // Termo ambiente
+        vec3 ambient_term = Ka*Ia;
+
+        // Termo especular utilizando o modelo de iluminação de Phong
+        vec3 phong_specular_term  = Ks*I*max(0, pow(dot(r, v), q));
+
+        cor_v.rgb = lambert_diffuse_term + ambient_term + phong_specular_term;
+    }
+
 }
 
