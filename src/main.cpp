@@ -213,6 +213,11 @@ auto translate_carro = glm::vec4(2.0f, -0.7f,0.0f,1.0f); //posição inicial do 
 std::vector<AABB> boxes;
 int bbox_id;
 
+//controles de camera
+glm::vec4 camera_lookat_l;
+glm::vec4 camera_view_vector;
+glm::vec4 camera_up_vector;
+
 int main(int argc, char* argv[])
 {
     // Inicializamos a biblioteca GLFW, utilizada para criar uma janela do
@@ -395,9 +400,7 @@ int main(int argc, char* argv[])
         // e ScrollCallback().
         float x, y, z;
 
-        glm::vec4 camera_lookat_l;
-        glm::vec4 camera_view_vector;
-        glm::vec4 camera_up_vector;
+        
 
         float carUniformScale = 0.5f;
         glm::mat4 car_model_matrix = Matrix_Translate(translate_carro[0], translate_carro[1], translate_carro[2])
@@ -407,12 +410,12 @@ int main(int argc, char* argv[])
         auto last_pos = translate_carro;
 
         if(camera_mode){ //caso seja camera livre
-            y = sin(g_CameraPhi);
+            y = -sin(g_CameraPhi);
             z = cos(g_CameraPhi)*cos(g_CameraTheta);
             x = cos(g_CameraPhi)*sin(g_CameraTheta);
 
-            glm::vec4 camera_view_vector = glm::normalize(glm::vec4(x, y, z, 0.0f));
-            glm::vec4 camera_up_vector = glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
+            camera_view_vector = glm::normalize(glm::vec4(x, y, z, 0.0f));
+            camera_up_vector = glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
 
 
             glm::vec4 w = -camera_view_vector / norm(camera_view_vector);
