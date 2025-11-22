@@ -52,6 +52,21 @@
 #define PLANE  2
 #define FUSCA  4
 
+#define STRAIGHT 5
+#define RAMP 6
+#define TURN 7
+
+// --- TRACK BUILDER SYSTEM ---
+struct TrackCursor {
+    glm::vec3 position; // Where the next piece connects
+    float angleY;       // Current direction in degrees (0 = -Z)
+};
+
+// Constants for Track Building
+const float TRACK_Y = -1.0f; // Height of the floor
+const float PIECE_LENGTH = 10.0f; // Length of a straight piece
+const float TURN_RADIUS = 6.366197f; // 20 / PI
+
 // Declaração de funções utilizadas para pilha de matrizes de modelagem.
 void PushMatrix(glm::mat4 M);
 void PopMatrix(glm::mat4& M);
@@ -106,6 +121,10 @@ void DrawAllObjects(std::vector<std::tuple<glm::mat4, const char*, int>> objects
 bool SphereSphereCollision(ObjModel obj1, ObjModel obj2, glm::mat4 object1_model, int object1_id, glm::mat4 object2_model, int object2_id, float object1_uniformScale, float object2_UniformScale, glm::mat4 view, glm::mat4 projection);
 void TreatCarCollision(glm::mat4 sphere_model_matrix, float sphereUniformScale, glm::mat4 car_model_matrix, std::pair<int,int> collision, glm::vec4 last_pos);
 OBB TransformOBB(const OBB& localBox, const glm::mat4& transform);
+//Funções da pista
+void AddStraight(std::vector<std::tuple<glm::mat4, const char*, int>>& objects, TrackCursor& cursor);
+void AddTurnLeft(std::vector<std::tuple<glm::mat4, const char*, int>>& objects, TrackCursor& cursor);
+void BuildTrack(std::vector<std::tuple<glm::mat4, const char*, int>>& objects, TrackCursor& cursor);
 
 // Definimos uma estrutura que armazenará dados necessários para renderizar
 // cada objeto da cena virtual.
@@ -217,6 +236,9 @@ int bbox_id;
 glm::vec4 camera_lookat_l;
 glm::vec4 camera_view_vector;
 glm::vec4 camera_up_vector;
+
+// List of all static objects in the scene (built once)
+std::vector<std::tuple<glm::mat4, const char*, int>> g_TrackObjects;
 
 int main(int argc, char* argv[])
 {
@@ -347,6 +369,20 @@ int main(int argc, char* argv[])
     ComputeNormals(&fuscamodel);
     BuildTrianglesAndAddToVirtualScene(&fuscamodel);
 
+    //TESTE
+    ObjModel rampa("../../models/pista/ramp.obj");
+    ComputeNormals(&rampa);
+    BuildTrianglesAndAddToVirtualScene(&rampa);
+
+    ObjModel reta("../../models/pista/straight.obj");
+    ComputeNormals(&reta);
+    BuildTrianglesAndAddToVirtualScene(&reta);
+
+    ObjModel curva("../../models/pista/turn.obj");
+    ComputeNormals(&curva);
+    BuildTrianglesAndAddToVirtualScene(&curva);
+
+
     printf("Building local-space collision hulls...\n");
     g_localSphereHull = BoundingSphere(spheremodel, SPHERE);
     // Build local-space OBBs by passing an Identity matrix
@@ -369,6 +405,15 @@ int main(int argc, char* argv[])
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
     glFrontFace(GL_CCW);
+
+
+
+    // Initialize Cursor
+    TrackCursor cursor;
+    cursor.position = glm::vec3(0.0f, TRACK_Y, 5.0f); // Start a bit back so Reta 1 center is at 0,0,0? No, let's start at 0.
+    cursor.angleY = 0.0f;
+
+    BuildTrack(g_TrackObjects, cursor);
 
     glm::vec4 camera_position_c = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
     // Ficamos em um loop infinito, renderizando, até que o usuário feche a janela
@@ -400,7 +445,7 @@ int main(int argc, char* argv[])
         // e ScrollCallback().
         float x, y, z;
 
-        
+
 
         float carUniformScale = 0.5f;
         glm::mat4 car_model_matrix = Matrix_Translate(translate_carro[0], translate_carro[1], translate_carro[2])
@@ -459,7 +504,7 @@ int main(int argc, char* argv[])
             camera_lookat_l    = car_model_matrix[3]; // Ponto "l", para onde a câmera (look-at) estará sempre olhando
             camera_view_vector = camera_lookat_l - camera_position_c; // Vetor "view", sentido para onde a câmera está virada
             camera_up_vector   = glm::vec4(0.0f,1.0f,0.0f,0.0f); // Vetor "up" fixado para apontar para o "céu" (eito Y global)
-        }        
+        }
 
         // Computamos a matriz "View" utilizando os parâmetros da câmera para
         // definir o sistema de coordenadas da câmera.  Veja slides 2-14, 184-190 e 236-242 do documento Aula_08_Sistemas_de_Coordenadas.pdf.
@@ -473,15 +518,13 @@ int main(int argc, char* argv[])
         float nearplane = -0.1f;  // Posição do "near plane"
         float farplane  = -100.0f; // Posição do "far plane"
 
-        if (g_UsePerspectiveProjection)
-        {
+        if (g_UsePerspectiveProjection){
             // Projeção Perspectiva.
             // Para definição do field of view (FOV), veja slides 205-215 do documento Aula_09_Projecoes.pdf.
             float field_of_view = 3.141592 / 3.0f;
             projection = Matrix_Perspective(field_of_view, g_ScreenRatio, nearplane, farplane);
         }
-        else
-        {
+        else{
             // Projeção Ortográfica.
             // Para definição dos valores l, r, b, t ("left", "right", "bottom", "top"),
             // PARA PROJEÇÃO ORTOGRÁFICA veja slides 219-224 do documento Aula_09_Projecoes.pdf.
@@ -509,6 +552,10 @@ int main(int argc, char* argv[])
         glm::mat4 sphere_model_matrix = Matrix_Translate(-1.0f,0.0f,0.0f) * Matrix_Scale(sphereUniformScale, sphereUniformScale, sphereUniformScale);
         BuildBBoxArray("the_sphere", sphere_model_matrix, SPHERE);
 
+
+        glm::mat4 sphere_model_matrix2 = Matrix_Translate(-30.0f,0.0f, 0.0f) * Matrix_Scale(sphereUniformScale, sphereUniformScale, sphereUniformScale);
+        BuildBBoxArray("the_sphere", sphere_model_matrix2, SPHERE);
+
         // Desenhamos o modelo do coelho
         // model = Matrix_Translate(1.0f,0.0f,0.0f)
         //       * Matrix_Rotate_Z(g_AngleZ)
@@ -519,10 +566,11 @@ int main(int argc, char* argv[])
         // DrawVirtualObject("the_bunny");
 
         //Desenhando plano
-        glm::mat4 plane_model = Matrix_Translate(0.0f, -1.0f, 0.0f)
+       /* glm::mat4 plane_model = Matrix_Translate(0.0f, -1.0f, 0.0f)
                 *Matrix_Scale(100.0f, 1.0f, 100.0f);
             BuildBBoxArray("the_plane", plane_model, PLANE);
-                
+*/
+
             //jeep renegade, bboxes
             BuildBBoxArray("Mesh1 Group1 Model", car_model_matrix, CAR);
             BuildBBoxArray("Mesh2 Group2 Model", car_model_matrix, CAR);
@@ -554,7 +602,7 @@ int main(int argc, char* argv[])
         glUniform1i(g_object_id_uniform, FUSCA);
         DrawVirtualObject("volkswagen_beetle_toy");
         //#########################################################################*/
-        
+
         //verificando colisões
         auto possibleCollisions = SweepAndPrune(boxes);
 
@@ -563,14 +611,31 @@ int main(int argc, char* argv[])
         //     velocidade_atual = -velocidade_atual*0.6f;
         // }
 
-        for (auto collision : possibleCollisions){
+        /*for (auto collision : possibleCollisions){
             if(collision.first == CAR)
                 TreatCarCollision(sphere_model_matrix, sphereUniformScale, car_model_matrix, collision, last_pos);
+        }*/
+
+
+        // Gambiarra para que cheque a colisão com as duas esferas, problemas caso tenhamos muitos objetos de um mesmo tipo
+        // Problema com aquele for é que ele usa a sphere_model_matrix estática sempre
+        if (possibleCollisions.count({CAR, SPHERE}))
+        {
+            // Checa colisão com a Esfera 1
+            TreatCarCollision(sphere_model_matrix, sphereUniformScale, car_model_matrix, {CAR, SPHERE}, last_pos);
+
+            // Checa colisão com a Esfera 2
+            TreatCarCollision(sphere_model_matrix2, sphereUniformScale, car_model_matrix, {CAR, SPHERE}, last_pos);
         }
+
+        // Draw Static Track
+        DrawAllObjects(g_TrackObjects);
 
         //vetor de objetos a serem desenhados, embaixo pois podem sofrer alteração com colisões
         objects.push_back(std::make_tuple(sphere_model_matrix, "the_sphere", SPHERE));
-        objects.push_back(std::make_tuple(plane_model, "the_plane", PLANE));
+        objects.push_back(std::make_tuple(sphere_model_matrix2, "the_sphere", SPHERE));
+
+
         objects.push_back(std::make_tuple(car_model_matrix, "Mesh1 Group1 Model", CAR));
         objects.push_back(std::make_tuple(car_model_matrix, "Mesh2 Group2 Model", CAR));
         objects.push_back(std::make_tuple(car_model_matrix, "Mesh3 Group3 Model", CAR));
@@ -581,9 +646,22 @@ int main(int argc, char* argv[])
         objects.push_back(std::make_tuple(car_model_matrix, "Mesh8 Group8 Model", CAR));
         objects.push_back(std::make_tuple(car_model_matrix, "Mesh9 Group9 Model", CAR));
         objects.push_back(std::make_tuple(car_model_matrix, "Mesh10 Group10 Model", CAR));
-   
+
         //desenha todos objetos
         DrawAllObjects(objects);
+
+        if (debug_mode){
+            for (const auto& box : boxes)
+                DrawDebugBox(box, view, projection);
+
+            // Desenha a esfera de colisão da Esfera 1
+            Sphere s1 = { glm::vec3(sphere_model_matrix * glm::vec4(g_localSphereHull.center, 1.0f)), g_localSphereHull.radius * sphereUniformScale, 0 };
+            DrawDebugSphere(s1, view, projection);
+
+            // Desenha a esfera de colisão da Esfera 2
+            Sphere s2 = { glm::vec3(sphere_model_matrix2 * glm::vec4(g_localSphereHull.center, 1.0f)), g_localSphereHull.radius * sphereUniformScale, 0 };
+            DrawDebugSphere(s2, view, projection);
+        }
 
         // Imprimimos na tela os ângulos de Euler que controlam a rotação do
         // terceiro cubo.
@@ -1988,7 +2066,7 @@ void TreatCarCollision(glm::mat4 sphere_model_matrix, float sphereUniformScale, 
         {
             // Transform local OBB to world OBB
             OBB worldBox = TransformOBB(localBox, car_model_matrix);
-            
+
             glm::vec3 mtv;
 
             if (CHitboxSphereCollision(worldBox, worldSphere, mtv))
@@ -2022,7 +2100,7 @@ void TreatCarCollision(glm::mat4 sphere_model_matrix, float sphereUniformScale, 
 OBB TransformOBB(const OBB& localBox, const glm::mat4& transform)
 {
     OBB worldBox;
-    
+
     // Transform center
     worldBox.center = glm::vec3(transform * glm::vec4(localBox.center, 1.0f));
     worldBox.id = localBox.id;
@@ -2040,5 +2118,130 @@ OBB TransformOBB(const OBB& localBox, const glm::mat4& transform)
     return worldBox;
 }
 
+// Helper to add pieces to the list
+void AddStraight(std::vector<std::tuple<glm::mat4, const char*, int>>& objects, TrackCursor& cursor) {
+    float rad = glm::radians(cursor.angleY);
+
+    // Forward vector based on current angle
+    glm::vec3 forward = glm::vec3(sin(rad), 0.0f, cos(rad));
+
+    // 1. Calculate Center Position of the Straight
+    // The cursor is at the START edge. The center is half a length forward.
+    // BUT: Your straights go from -5 to +5. If we are moving in -Z (angle 0), we want to place center at -5.
+    // Forward vector for 0 deg is (0,0,1). We want to move -Z.
+    // Let's fix Forward convention: 0 degrees = Moving towards -Z.
+    // sin(0)=0, cos(0)=1. Vector is (0,0,1).
+    // To move -Z, we subtract.
+
+    // Move cursor to CENTER of the piece to draw it
+    glm::vec3 drawPos = cursor.position - (forward * (PIECE_LENGTH / 2.0f));
+
+    // Build Matrix
+    glm::mat4 model = Matrix_Translate(drawPos.x, drawPos.y, drawPos.z)
+                    * Matrix_Rotate_Y(rad)
+                    * Matrix_Identity(); // Scale is 1.0
+
+    // Add to list
+    objects.push_back(std::make_tuple(model, "the_reta", STRAIGHT));
+    BuildBBoxArray("the_reta", model, STRAIGHT);
+
+    // 2. Update Cursor to the END of the piece
+    cursor.position -= (forward * PIECE_LENGTH);
+}
+
+void AddTurnLeft(std::vector<std::tuple<glm::mat4, const char*, int>>& objects, TrackCursor& cursor) {
+    float rad = glm::radians(cursor.angleY);
+
+    // The turn pivot is exactly at the cursor. Just draw it.
+    glm::mat4 model = Matrix_Translate(cursor.position.x, cursor.position.y, cursor.position.z)
+                    * Matrix_Rotate_Y(rad); // Apply current rotation
+
+    // Add to list
+    objects.push_back(std::make_tuple(model, "the_turn", TURN));
+    BuildBBoxArray("the_turn", model, TURN);
+
+    // Update Cursor logic (The Magic Math)
+    // We need to move the cursor by [Radius] forward and [Radius] left (relative to current rotation)
+    // Then rotate 90 degrees.
+
+    // Relative offset for a Left Turn: (-R, 0, -R)
+    // We need to rotate this offset by 'rad'
+    float R = TURN_RADIUS;
+
+    // Rotate vector (-R, 0, -R) by 'rad' around Y
+    // x' = x*cos - z*sin
+    // z' = x*sin + z*cos
+    // Note: We are moving in -Z by default.
+
+    // Let's trust the "Forward" and "Right" vectors
+    glm::vec3 forward = glm::vec3(sin(rad), 0.0f, cos(rad)); // Pointing "Back" in world, but "Forward" for track logic
+    glm::vec3 right   = glm::vec3(cos(rad), 0.0f, -sin(rad));
+
+    // For a left turn, we move -Forward * R and -Right * R ?
+    // No, let's simplify.
+    // If angle is 0: Cursor (0,0,0). End is (-6.36, 0, -6.36).
+    // Change in X: -R. Change in Z: -R.
+
+    float dx = -R * cos(rad) - R * sin(rad);
+    float dz = -R * -sin(rad) - R * cos(rad);
+
+    // Actually, let's just use the geometric logic:
+    // Move R forward (local -Z), Move R left (local -X)
+    // But since we define 0 deg as +Z vector... it's confusing.
+    // Let's stick to:
+    // Angle 0:   dPos (-6.36, 0, -6.36)
+    // Angle 90:  dPos (-6.36, 0, +6.36)
+
+    // Global displacement vector
+    glm::vec3 displacement(-R, 0.0f, -R); // Local displacement
+
+    // Apply Y rotation to displacement
+    float x_new = displacement.x * cos(rad) + displacement.z * sin(rad);
+    float z_new = -displacement.x * sin(rad) + displacement.z * cos(rad);
+
+    cursor.position.x += x_new;
+    cursor.position.z += z_new;
+
+    // Rotate cursor 90 degrees LEFT
+    cursor.angleY += 90.0f;
+}
+
+void BuildTrack(std::vector<std::tuple<glm::mat4, const char*, int>>& objects, TrackCursor& cursor ) {
+    printf("Building Track...\n");
+
+    // START LINE (3 Straights)
+    AddStraight(g_TrackObjects, cursor);
+    AddStraight(g_TrackObjects, cursor);
+    AddStraight(g_TrackObjects, cursor);
+
+    // TURN 1
+    AddTurnLeft(g_TrackObjects, cursor);
+
+    // SIDE STRAIGHTS
+    AddStraight(g_TrackObjects, cursor);
+    AddStraight(g_TrackObjects, cursor);
+
+    // TURN 2
+    AddTurnLeft(g_TrackObjects, cursor);
+
+    // BACK STRAIGHTS
+    AddStraight(g_TrackObjects, cursor);
+    AddStraight(g_TrackObjects, cursor);
+    AddStraight(g_TrackObjects, cursor);
+    AddStraight(g_TrackObjects, cursor);
+    AddStraight(g_TrackObjects, cursor);
+
+    //TURN 3
+    AddTurnLeft(g_TrackObjects, cursor);
+    // SIDE STRAIGHTS
+    AddStraight(g_TrackObjects, cursor);
+    AddStraight(g_TrackObjects, cursor);
+
+    //TURN 4
+    AddTurnLeft(g_TrackObjects, cursor);
+
+    AddStraight(g_TrackObjects, cursor);
+    AddStraight(g_TrackObjects, cursor);
+}
 // set makeprg=cd\ ..\ &&\ make\ run\ >/dev/null
 // vim: set spell spelllang=pt_br :
