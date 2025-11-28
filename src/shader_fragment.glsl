@@ -23,6 +23,12 @@ uniform mat4 projection;
 #define PLANE  2
 #define SPHERE 1
 #define FUSCA  4
+
+
+#define STRAIGHT 5
+#define RAMP 6
+#define TURN 7
+
 uniform int object_id;
 
 // Parâmetros da axis-aligned bounding box (AABB) do modelo
@@ -94,15 +100,15 @@ void main()
     float q; // Expoente especular para o modelo de iluminação de Phong
 
 
-    if ( object_id == PLANE )
+    if ( object_id == PLANE || object_id == STRAIGHT || object_id == TURN)
     {
 
         // O plane.obj não tem texcoords. Geramos proceduralmente.
         // Usamos position_model.x e position_model.z como UVs.
         // Multiplicamos por 50.0 para repetir a textura (tiling).
-        vec2 plane_uv = vec2(position_model.x, position_model.z) * 100.0;
-        vec3 texColor = texture(TextureImage2, plane_uv).rgb;
-
+        //vec2 plane_uv = vec2(position_model.x, position_model.z) * 100.0;
+        //vec3 texColor = texture(TextureImage2, plane_uv).rgb;
+        vec3 texColor = texture(TextureImage2, (texcoords* 25.0)).rgb ;
         // Coeficientes espectrais derivados da textura
         Kd = texColor;                  // Difusa baseada na textura
         Ka = texColor * 0.3;            // Ambiente mais fraco
