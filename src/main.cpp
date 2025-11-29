@@ -326,7 +326,13 @@ int main(int argc, char* argv[])
         // Adiciona as caixas do carro à lista de colisão deste frame
         BuildBBoxArray(g_VirtualScene, currentFrameBoxes, current_bbox_id, "Mesh1 Group1 Model", car_model_matrix, CAR);
         BuildBBoxArray(g_VirtualScene, currentFrameBoxes, current_bbox_id, "Mesh2 Group2 Model", car_model_matrix, CAR);
-        // ... (adicione as outras partes se necessário para precisão) ...
+        BuildBBoxArray(g_VirtualScene, currentFrameBoxes, current_bbox_id, "Mesh3 Group3 Model", car_model_matrix, CAR);
+        BuildBBoxArray(g_VirtualScene, currentFrameBoxes, current_bbox_id, "Mesh4 Group4 Model", car_model_matrix, CAR);
+        BuildBBoxArray(g_VirtualScene, currentFrameBoxes, current_bbox_id, "Mesh5 Group5 Model", car_model_matrix, CAR);
+        BuildBBoxArray(g_VirtualScene, currentFrameBoxes, current_bbox_id, "Mesh6 Group6 Model", car_model_matrix, CAR);
+        BuildBBoxArray(g_VirtualScene, currentFrameBoxes, current_bbox_id, "Mesh7 Group7 Model", car_model_matrix, CAR);
+        BuildBBoxArray(g_VirtualScene, currentFrameBoxes, current_bbox_id, "Mesh8 Group8 Model", car_model_matrix, CAR);
+        BuildBBoxArray(g_VirtualScene, currentFrameBoxes, current_bbox_id, "Mesh9 Group9 Model", car_model_matrix, CAR);
         BuildBBoxArray(g_VirtualScene, currentFrameBoxes, current_bbox_id, "Mesh10 Group10 Model", car_model_matrix, CAR);
 
         // Broadphase
