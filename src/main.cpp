@@ -274,6 +274,7 @@ int main(int argc, char* argv[])
 
         if (g_State.input.camera_mode) // Câmera Livre
         {
+            CarControl(g_Car, g_State.input, deltaTime);
             // Lógica de câmera livre (Orbital/Free)
             // Usa g_State.cameraTheta/Phi atualizados pelo input
             float r = g_State.cameraDistance;
@@ -290,7 +291,7 @@ int main(int argc, char* argv[])
         }
         else // Câmera do Jogo (Segue o Carro)
         {
-            // Atualiza Física do Carro
+            /* Atualiza Física do Carro
             CarControl(g_Car, g_State.input, deltaTime);
 
             float r = g_State.cameraDistance;
@@ -302,6 +303,38 @@ int main(int argc, char* argv[])
             camera_lookat_l    = glm::vec4(g_Car.position, 1.0f); // Olha para o carro
             camera_view_vector = camera_lookat_l - camera_position_c;
             camera_up_vector   = glm::vec4(0.0f,1.0f,0.0f,0.0f);
+            */
+            CarControl(g_Car, g_State.input, deltaTime);
+
+            // --- LÓGICA DE SUAVIZAÇÃO (INTERPOLAÇÃO) ---
+
+            // 1. Calcula Onde a Câmera DEVERIA estar (Ideal)
+            float cam_distance = 3.5f;
+            float cam_height   = 1.5f;
+            float ang_rad = glm::radians(g_Car.angle);
+            glm::vec3 car_forward = glm::vec3(sin(ang_rad), 0.0f, cos(ang_rad));
+
+            glm::vec3 ideal_pos = g_Car.position - (car_forward * cam_distance);
+            ideal_pos.y += cam_height;
+
+            glm::vec3 ideal_lookat = g_Car.position;
+            ideal_lookat.y += 0.5f;
+
+            // 2. Interpolação (Lerp)
+            // O fator determina o quão rápido a câmera segue.
+            // 2.0 = Lento/Pesado, 10.0 = Rápido/Grudado.
+            // Multiplicamos por deltaTime para ser independente do framerate.
+            float lerp_speed = 15.0f;
+
+            g_CurrentCameraPos = glm::mix(g_CurrentCameraPos, ideal_pos, lerp_speed * deltaTime);
+            g_CurrentCameraLookAt = glm::mix(g_CurrentCameraLookAt, ideal_lookat, lerp_speed * deltaTime);
+
+            // 3. Aplica
+            camera_position_c  = glm::vec4(g_CurrentCameraPos, 1.0f);
+            camera_lookat_l    = glm::vec4(g_CurrentCameraLookAt, 1.0f);
+            camera_view_vector = camera_lookat_l - camera_position_c;
+            camera_up_vector   = glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
+
         }
 
         // Matriz do Carro Atualizada
