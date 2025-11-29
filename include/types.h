@@ -12,7 +12,7 @@
 #define CAR    0
 #define SPHERE 1
 #define PLANE  2
-#define FUSCA  4
+#define BARRIER  4
 #define STRAIGHT 5
 #define RAMP 6
 #define TURN 7

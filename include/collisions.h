@@ -18,16 +18,8 @@ std::vector<OBB> BuildCompoundHitbox(const ObjModel& model, const glm::mat4& tra
 bool CHitboxSphereCollision(const OBB& box, const Sphere& sphere, glm::vec3& mtv);
 
 // REFACTORED: Now accepts the scene map, the boxes vector, and the ID counter
-void BuildBBoxArray(const std::map<std::string, SceneObject>& virtualScene,
-                    std::vector<AABB>& boxes,
-                    int& bboxId,
-                    const std::string& name,
-                    const glm::mat4& modelMatrix,
-                    int objectId);
+void BuildBBoxArray(const std::map<std::string, SceneObject>& virtualScene, std::vector<AABB>& boxes, int& bboxId, const std::string& name, const glm::mat4& modelMatrix, int objectId);
 // REFACTORED: Removed debug drawing (Renderer dependency) and fixed pass-by-value
-bool SphereSphereCollision(const ObjModel& obj1, const ObjModel& obj2,
-                           glm::mat4 object1_model, int object1_id,
-                           glm::mat4 object2_model, int object2_id,
-                           float object1_uniformScale, float object2_UniformScale);
-
+bool SphereSphereCollision(const ObjModel& obj1, const ObjModel& obj2, glm::mat4 object1_model, int object1_id, glm::mat4 object2_model, int object2_id, float object1_uniformScale, float object2_UniformScale);
 OBB TransformOBB(const OBB& localBox, const glm::mat4& transform);
+bool AabbObbCollision(const AABB& aabb, const OBB& obb, glm::vec3& mtv);

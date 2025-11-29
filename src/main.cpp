@@ -51,9 +51,6 @@ void TextRendering_PrintMatrixVectorProductDivW(GLFWwindow* window, glm::mat4 M,
 // Funções abaixo renderizam como texto na janela OpenGL algumas matrizes e
 // outras informações do programa. Definidas após main().
 
-void TextRendering_ShowModelViewProjection(GLFWwindow* window, glm::mat4 projection, glm::mat4 view, glm::mat4 model, glm::vec4 p_model);
-void TextRendering_ShowEulerAngles(GLFWwindow* window);
-void TextRendering_ShowProjection(GLFWwindow* window);
 void TextRendering_ShowFramesPerSecond(GLFWwindow* window);
 
 // --- VARIÁVEIS GLOBAIS DE ESTADO (State Management) ---
@@ -71,6 +68,7 @@ std::stack<glm::mat4> g_MatrixStack;               // Pilha de matrizes (usada p
 // Cache de Colisão
 Sphere g_localSphereHull;
 std::vector<OBB> g_localCarHulls;
+AABB g_localBarrierHull;
 
 // Contador de Texturas
 GLuint g_NumLoadedTextures = 0;
@@ -157,11 +155,14 @@ int main(int argc, char* argv[])
     // Carrega Shaders para a struct g_Shader
     LoadShadersFromFiles(g_Shader);
 
-    // Carrega Texturas
+    //carregando texturas
     LoadTextureImage("../../data/tc-earth_daymap_surface.jpg", g_NumLoadedTextures);      // 0
     LoadTextureImage("../../data/tc-earth_nightmap_citylights.gif", g_NumLoadedTextures); // 1
     LoadTextureImage("../../data/asfalto.jpg", g_NumLoadedTextures);                      // 2
     LoadTextureImage("../../models/Jeep_Renegade_2016/Jeep_Renegade_2016/car_jeep_ren.jpg", g_NumLoadedTextures); // 3
+    LoadTextureImage("../../models/concrete_road_barrier/textures/concrete_road_barrier_arm_4k.jpg", g_NumLoadedTextures); // 4
+    LoadTextureImage("../../models/concrete_road_barrier/textures/concrete_road_barrier_diff_4k.jpg", g_NumLoadedTextures); // 5
+    LoadTextureImage("../../models/concrete_road_barrier/textures/concrete_road_barrier_nor_gl_4k.jpg", g_NumLoadedTextures); // 6
 
     // Carrega Modelos
     // Esfera
@@ -197,13 +198,11 @@ int main(int argc, char* argv[])
     ComputeNormals(&curva);
     BuildTrianglesAndAddToVirtualScene(g_VirtualScene, &curva);
 
-    // 3. Inicialização de Física e Colisão
-    printf("Building local-space collision hulls...\n");
-    g_localSphereHull = BoundingSphere(spheremodel, SPHERE);
-    g_localCarHulls   = BuildCompoundHitbox(carmodel, Matrix_Identity(), CAR);
-    printf("Hulls built.\n");
+    ObjModel barriermodel("../../models/concrete_road_barrier/barrier.obj");
+    ComputeNormals(&barriermodel);
+    BuildTrianglesAndAddToVirtualScene(g_VirtualScene, &barriermodel);
 
-    // 4. Inicialização da Pista (Level Design)
+    // 3. Inicialização da Pista (Level Design)
     TrackCursor cursor;
     cursor.position = glm::vec3(0.0f, TRACK_Y, 5.0f);
     cursor.angleY = 0.0f;
@@ -222,6 +221,19 @@ int main(int argc, char* argv[])
     g_TrackObjects.push_back(std::make_tuple(sphere_model_matrix2, "the_sphere", SPHERE));
     BuildBBoxArray(g_VirtualScene, g_CollisionBoxes, bbox_id_counter, "the_sphere", sphere_model_matrix2, SPHERE);
 
+    // Adiciona barreira à cena
+    glm::mat4 barrier_model_matrix = Matrix_Translate(4.0f, -1.0f, 0.0f) * Matrix_Scale(1.0f, 1.0f, 1.0f);
+    g_TrackObjects.push_back(std::make_tuple(barrier_model_matrix, "concrete_road_barrier", BARRIER));
+    BuildBBoxArray(g_VirtualScene, g_CollisionBoxes, bbox_id_counter, "concrete_road_barrier", barrier_model_matrix, BARRIER);
+    int barrierHullId = bbox_id_counter-1;
+
+    // 4. Inicialização de Física e Colisão
+    printf("Building local-space collision hulls...\n");
+    g_localSphereHull = BoundingSphere(spheremodel, SPHERE);
+    g_localCarHulls   = BuildCompoundHitbox(carmodel, Matrix_Identity(), CAR);
+    g_localBarrierHull = g_CollisionBoxes[barrierHullId];
+    printf("Hulls built.\n");
+
 
     // Inicialização Final
     TextRendering_Init();
@@ -231,7 +243,7 @@ int main(int argc, char* argv[])
     glFrontFace(GL_CCW);
 
     // Setup inicial do Carro
-    g_Car.position = glm::vec3(2.0f, -0.7f, 0.0f);
+    g_Car.position = glm::vec3(2.0f, -1.0f, 0.0f);
     g_Car.angle    = 0.0f;
     g_Car.speed    = 0.0f;
 
@@ -379,10 +391,13 @@ int main(int argc, char* argv[])
         if (possibleCollisions.count({CAR, SPHERE}))
         {
             // Verifica colisão contra a Esfera 1
-            TreatCarCollision(sphere_model_matrix, sphereUniformScale, car_model_matrix, {CAR, SPHERE}, g_Car, last_car_pos, g_localSphereHull, g_localCarHulls);
+            TreatCarSphereCollision(sphere_model_matrix, sphereUniformScale, car_model_matrix, {CAR, SPHERE}, g_Car, last_car_pos, g_localSphereHull, g_localCarHulls);
 
             // Verifica colisão contra a Esfera 2
-            TreatCarCollision(sphere_model_matrix2, sphereUniformScale, car_model_matrix, {CAR, SPHERE}, g_Car, last_car_pos, g_localSphereHull, g_localCarHulls);
+            TreatCarSphereCollision(sphere_model_matrix2, sphereUniformScale, car_model_matrix, {CAR, SPHERE}, g_Car, last_car_pos, g_localSphereHull, g_localCarHulls);
+        }
+        if (possibleCollisions.count({CAR, BARRIER})) {
+            TreatCarBarrierCollision(car_model_matrix, {CAR, BARRIER}, g_Car, last_car_pos, g_localCarHulls, g_localBarrierHull);
         }
 
         // Nota: Se você tiver colisão CAR vs PLANE ou CAR vs WALL, adicione aqui usando TreatCarCollision (adaptando para OBB vs OBB se necessário)

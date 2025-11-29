@@ -75,54 +75,98 @@ void CarControl(CarState& car, const InputState& input, float deltaTime) {
 }
 
 
-void TreatCarCollision(const glm::mat4& sphere_model_matrix,
-                       float sphereUniformScale,
-                       const glm::mat4& car_model_matrix,
-                       const std::pair<int,int>& collision,
-                       CarState& car,
-                       const glm::vec3& last_pos,
-                       const Sphere& localSphereHull,
-                       const std::vector<OBB>& localCarHulls)
+void TreatCarSphereCollision(const glm::mat4& sphere_model_matrix, float sphereUniformScale, const glm::mat4& car_model_matrix, const std::pair<int,int>& collision, CarState& car, const glm::vec3& last_pos, const Sphere& localSphereHull, const std::vector<OBB>& localCarHulls)
 {
-    if(collision.second == SPHERE)
-    {
-        // 1. Get World-Space Sphere (from passed local hull)
-        glm::vec3 worldCenter = glm::vec3(sphere_model_matrix * glm::vec4(localSphereHull.center, 1.0f));
-        float worldRadius = localSphereHull.radius * sphereUniformScale;
-        Sphere worldSphere = { worldCenter, worldRadius, localSphereHull.id };
+    // 1. Get World-Space Sphere (from passed local hull)
+    glm::vec3 worldCenter = glm::vec3(sphere_model_matrix * glm::vec4(localSphereHull.center, 1.0f));
+    float worldRadius = localSphereHull.radius * (sphereUniformScale * 0.9f); //0.9f para ficar mais perto
+    Sphere worldSphere = { worldCenter, worldRadius, localSphereHull.id };
 
+    glm::vec3 largestMtv(0.0f);
+    bool hasCollided = false;
+
+    // 2. Get World-Space Car Hitboxes (from passed local hulls)
+    for (const auto& localBox : localCarHulls)
+    {
+        // Transform local OBB to world OBB
+        OBB worldBox = TransformOBB(localBox, car_model_matrix);
+
+        glm::vec3 mtv;
+
+        if (CHitboxSphereCollision(worldBox, worldSphere, mtv))
+        {
+            hasCollided = true;
+            // Find largest pushback
+            if (glm::length(mtv) > glm::length(largestMtv))
+            {
+                largestMtv = mtv;
+            }
+        }
+    }
+
+    // 3. Apply response
+    if (hasCollided)
+    {
+        // Pushback
+        car.position.x += largestMtv.x;
+        car.position.y += largestMtv.y;
+        car.position.z += largestMtv.z;
+
+        // Stop velocity
+        car.speed = -car.speed * 0.4f;
+    }
+}
+
+void TreatCarBarrierCollision(const glm::mat4& car_model_matrix, const std::pair<int,int>& collision, CarState& car, const glm::vec3& last_pos, const std::vector<OBB>& localCarHulls, const AABB& localBarrierHull)
+{
+        if (collision.second == BARRIER)
+    {
         glm::vec3 largestMtv(0.0f);
         bool hasCollided = false;
 
-        // 2. Get World-Space Car Hitboxes (from passed local hulls)
+        // Get Barrier AABB
+        AABB worldBarrierAABB = localBarrierHull;
+
+        // Car forward vector (Option A)
+        glm::vec3 carForward = glm::normalize(glm::vec3(car_model_matrix * glm::vec4(0,0,-1,0)));
+
+        // Test all OBB hitboxes of car
         for (const auto& localBox : localCarHulls)
         {
-            // Transform local OBB to world OBB
             OBB worldBox = TransformOBB(localBox, car_model_matrix);
 
             glm::vec3 mtv;
-
-            if (CHitboxSphereCollision(worldBox, worldSphere, mtv))
+            if (AabbObbCollision(worldBarrierAABB, worldBox, mtv))
             {
                 hasCollided = true;
-                // Find largest pushback
                 if (glm::length(mtv) > glm::length(largestMtv))
-                {
                     largestMtv = mtv;
-                }
             }
         }
 
-        // 3. Apply response
         if (hasCollided)
         {
-            // Pushback
+            // --- PUSH CAR OUT ---
             car.position.x += largestMtv.x;
             car.position.y += largestMtv.y;
             car.position.z += largestMtv.z;
 
-            // Stop velocity
-            car.speed = -car.speed * 0.6f;
+            // --- REALISTIC SLIDING RESPONSE ---
+
+            // Remove the component of velocity that goes into the wall
+            float normalPush = glm::dot(glm::normalize(largestMtv), carForward);
+
+            // If the car is pushing into the barrier
+            if (normalPush < 0.0f)
+            {
+                // Remove forward velocity into the wall (sliding effect)
+                car.speed *= 0.2f;     // keep only 20% -> slides along the wall
+            }
+            else
+            {
+                // Stop velocity
+                car.speed = -car.speed * 0.4f;
+            }
         }
     }
 }
