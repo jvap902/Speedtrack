@@ -1953,7 +1953,7 @@ void TreatCarCollision(glm::mat4 sphere_model_matrix, float sphereUniformScale, 
     {
         // 1. Get World-Space Sphere (from cached local hull)
         glm::vec3 worldCenter = glm::vec3(sphere_model_matrix * glm::vec4(g_localSphereHull.center, 1.0f));
-        float worldRadius = g_localSphereHull.radius * sphereUniformScale;
+        float worldRadius = g_localSphereHull.radius * (sphereUniformScale*0.85f);
         Sphere worldSphere = { worldCenter, worldRadius, g_localSphereHull.id };
 
         glm::vec3 largestMtv(0.0f);
@@ -1989,6 +1989,62 @@ void TreatCarCollision(glm::mat4 sphere_model_matrix, float sphereUniformScale, 
             // STOP the car's velocity to prevent sinking/jitter.
             // This is the most important part for fixing the "slow ghosting".
             velocidade_atual = -velocidade_atual*0.6f;
+        }
+    }
+    if (collision.second == BARRIER)
+    {
+        glm::vec3 largestMtv(0.0f);
+        bool hasCollided = false;
+
+        // Get Barrier AABB
+        AABB worldBarrierAABB;
+        for (auto ele : boxes)
+        {
+            if (ele.objectId == BARRIER)
+            {
+                worldBarrierAABB = ele;
+                break;
+            }
+        }
+
+        // Car forward vector (Option A)
+        glm::vec3 carForward = glm::normalize(glm::vec3(car_model_matrix * glm::vec4(0,0,-1,0)));
+
+        // Test all OBB hitboxes of car
+        for (const auto& localBox : g_localCarHulls)
+        {
+            OBB worldBox = TransformOBB(localBox, car_model_matrix);
+
+            glm::vec3 mtv;
+            if (AabbObbCollision(worldBarrierAABB, worldBox, mtv))
+            {
+                hasCollided = true;
+                if (glm::length(mtv) > glm::length(largestMtv))
+                    largestMtv = mtv;
+            }
+        }
+
+        if (hasCollided)
+        {
+            // --- PUSH CAR OUT ---
+            translate_carro += glm::vec4(largestMtv, 0.0f);
+
+            // --- REALISTIC SLIDING RESPONSE ---
+
+            // Remove the component of velocity that goes into the wall
+            float normalPush = glm::dot(glm::normalize(largestMtv), carForward);
+
+            // If the car is pushing into the barrier
+            if (normalPush < 0.0f)
+            {
+                // Remove forward velocity into the wall (sliding effect)
+                velocidade_atual *= 0.2f;     // keep only 20% -> slides along the wall
+            }
+            else
+            {
+                // Normal bounce behavior
+                velocidade_atual = -velocidade_atual * 0.3f;
+            }
         }
     }
 

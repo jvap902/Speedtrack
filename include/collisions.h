@@ -93,3 +93,4 @@ Sphere BoundingSphere(const ObjModel& model, int id);
 bool SSCollision(const Sphere& s1, const Sphere& s2);
 std::vector<OBB> BuildCompoundHitbox(const ObjModel& model, const glm::mat4& transform, int id);
 bool CHitboxSphereCollision(const OBB& box, const Sphere& sphere, glm::vec3& mtv);
+bool AabbObbCollision(const AABB& aabb, const OBB& obb, glm::vec3& mtv);
