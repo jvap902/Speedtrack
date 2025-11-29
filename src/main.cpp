@@ -75,6 +75,11 @@ std::vector<OBB> g_localCarHulls;
 // Contador de Texturas
 GLuint g_NumLoadedTextures = 0;
 
+// --- CÂMERA SUAVE (Novas Variáveis) ---
+// Precisamos lembrar onde a câmera estava no frame anterior para interpolar
+glm::vec3 g_CurrentCameraPos = glm::vec3(0.0f, 5.0f, 10.0f);
+glm::vec3 g_CurrentCameraLookAt = glm::vec3(0.0f, 0.0f, 0.0f);
+
 // --- VARIÁVEIS LEGADO (Para compatibilidade com TextRenderer) ---
 // O TextRenderer original espera encontrar essas variáveis globais.
 // Nós as manteremos aqui e as sincronizaremos com o g_State se necessário.
