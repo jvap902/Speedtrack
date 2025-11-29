@@ -145,7 +145,7 @@ std::vector<OBB> BuildCompoundHitbox(const ObjModel& model, const glm::mat4& tra
         glm::vec3 minBounds( FLT_MAX);
         glm::vec3 maxBounds(-FLT_MAX);
 
-        // Build local bounding box
+        // Each shape has its own mesh of indices
         for (size_t i = 0; i < shape.mesh.indices.size(); ++i)
         {
             int idx = shape.mesh.indices[i].vertex_index * 3;
@@ -156,28 +156,21 @@ std::vector<OBB> BuildCompoundHitbox(const ObjModel& model, const glm::mat4& tra
             maxBounds = glm::max(maxBounds, v);
         }
 
-        glm::vec3 center   = (minBounds + maxBounds) * 0.5f;
+        // Compute center and half-size in object space
+        glm::vec3 center = (minBounds + maxBounds) * 0.5f;
         glm::vec3 halfSize = (maxBounds - minBounds) * 0.5f;
 
-        // Transform center to world space
+        // Transform center into world space
         glm::vec3 worldCenter = glm::vec3(transform * glm::vec4(center, 1.0f));
 
-        // Extract world axes from rotation part
+        // Extract world axes from the model matrix
         glm::vec3 worldAxisX = glm::normalize(glm::vec3(transform[0]));
         glm::vec3 worldAxisY = glm::normalize(glm::vec3(transform[1]));
         glm::vec3 worldAxisZ = glm::normalize(glm::vec3(transform[2]));
 
-        // Apply scaling from model matrix to halfSize
-        glm::vec3 scaledHalfSize = glm::vec3(
-            halfSize.x * glm::length(glm::vec3(transform[0])),
-            halfSize.y * glm::length(glm::vec3(transform[1])),
-            halfSize.z * glm::length(glm::vec3(transform[2]))
-        );
-
-        // Build final OBB
         OBB obb;
         obb.center = worldCenter;
-        obb.halfSize = scaledHalfSize;
+        obb.halfSize = halfSize;
         obb.axis[0] = worldAxisX;
         obb.axis[1] = worldAxisY;
         obb.axis[2] = worldAxisZ;
@@ -188,7 +181,6 @@ std::vector<OBB> BuildCompoundHitbox(const ObjModel& model, const glm::mat4& tra
 
     return hitboxes;
 }
-
 
 bool CHitboxSphereCollision(const OBB& box, const Sphere& sphere, glm::vec3& mtv){
     glm::vec3 d = sphere.center - box.center;
@@ -232,81 +224,5 @@ bool CHitboxSphereCollision(const OBB& box, const Sphere& sphere, glm::vec3& mtv
     // We want the vector to push the *box* (the car)
     // It should be in the opposite direction of the penetration.
     mtv = -mtv_direction * penetrationDepth;
-    return true;
-}
-
-bool AabbObbCollision(const AABB& aabb, const OBB& obb, glm::vec3& mtv)
-{
-    // AABB center + half size
-    glm::vec3 aCenter = (aabb.min + aabb.max) * 0.5f;
-    glm::vec3 aHalf   = (aabb.max - aabb.min) * 0.5f;
-
-    glm::vec3 aAxes[3] = {
-        glm::vec3(1,0,0),
-        glm::vec3(0,1,0),
-        glm::vec3(0,0,1)
-    };
-
-    float bestOverlap = FLT_MAX;
-    glm::vec3 bestAxis(0.0f);
-
-    glm::vec3 delta = obb.center - aCenter;
-
-    auto testAxis = [&](const glm::vec3& rawAxis)
-    {
-        glm::vec3 axis = glm::normalize(rawAxis);
-
-        float aProj =
-            fabs(glm::dot(aAxes[0], axis)) * aHalf.x +
-            fabs(glm::dot(aAxes[1], axis)) * aHalf.y +
-            fabs(glm::dot(aAxes[2], axis)) * aHalf.z;
-
-        float bProj =
-            fabs(glm::dot(obb.axis[0], axis)) * obb.halfSize.x +
-            fabs(glm::dot(obb.axis[1], axis)) * obb.halfSize.y +
-            fabs(glm::dot(obb.axis[2], axis)) * obb.halfSize.z;
-
-        float dist = fabs(glm::dot(delta, axis));
-
-        float overlap = aProj + bProj - dist;
-
-        if (overlap < 0.0f)
-            return false;  // separating axis found
-
-        if (overlap < bestOverlap)
-        {
-            bestOverlap = overlap;
-
-            glm::vec3 fixedAxis = axis;
-            if (glm::dot(delta, fixedAxis) < 0)
-                fixedAxis = -fixedAxis;
-
-            bestAxis = fixedAxis;
-        }
-        return true;
-    };
-
-    // Test AABB axes
-    for (int i = 0; i < 3; i++)
-        if (!testAxis(aAxes[i])) return false;
-
-    // Test OBB axes
-    for (int i = 0; i < 3; i++)
-        if (!testAxis(obb.axis[i])) return false;
-
-    // Test cross axes (AABB vs OBB)
-    for (int i = 0; i < 3; i++)
-    {
-        for (int j = 0; j < 3; j++)
-        {
-            glm::vec3 axis = glm::cross(aAxes[i], obb.axis[j]);
-            if (glm::length2(axis) > 1e-6f)  // avoid degenerate axis
-            {
-                if (!testAxis(axis)) return false;
-            }
-        }
-    }
-
-    mtv = bestAxis * bestOverlap;
     return true;
 }
