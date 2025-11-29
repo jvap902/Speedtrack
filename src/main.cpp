@@ -50,7 +50,7 @@
 #define CAR    0
 #define SPHERE 1
 #define PLANE  2
-#define FUSCA  4
+#define BARRIER  4
 
 #define STRAIGHT 5
 #define RAMP 6
@@ -226,7 +226,7 @@ float aceleracao_resistencia = -1.2f;
 auto car_angle = 0.0f;
 float rad_car_angle = 0.0f;
 
-auto translate_carro = glm::vec4(2.0f, -0.7f,0.0f,1.0f); //posição inicial do carro
+auto translate_carro = glm::vec4(2.0f, -1.0f, 0.0f, 1.0f); //posição inicial do carro
 
 //array com bbox
 std::vector<AABB> boxes;
@@ -335,13 +335,9 @@ int main(int argc, char* argv[])
 
     LoadTextureImage("../../models/Jeep_Renegade_2016/Jeep_Renegade_2016/car_jeep_ren.jpg");      // TextureImage3
 
-    /*
-    LoadTextureImage("../../models/fusca/textures/volkswagen_beetle_toy.jpeg"); // TextureImage3
-
-    LoadTextureImage("../../models/fusca/textures/volkswagen_beetle_toy_specular.jpeg");
-    LoadTextureImage("../../models/fusca/textures/volkswagen_beetle_toy_gloss.jpeg");
-    LoadTextureImage("../../models/fusca/textures/internal_ground_ao_texture.jpeg");
-    */
+    LoadTextureImage("../../models/concrete_road_barrier/textures/concrete_road_barrier_arm_4k.jpg"); // TextureImage 4
+    LoadTextureImage("../../models/concrete_road_barrier/textures/concrete_road_barrier_diff_4k.jpg"); // TextureImage 5
+    LoadTextureImage("../../models/concrete_road_barrier/textures/concrete_road_barrier_nor_gl_4k.jpg"); // TextureImage 6
 
     // Construímos a representação de objetos geométricos através de malhas de triângulos
     ObjModel spheremodel("../../data/sphere.obj");
@@ -352,22 +348,17 @@ int main(int argc, char* argv[])
     ComputeNormals(&cubemodel);
     BuildTrianglesAndAddToVirtualScene(&cubemodel);
 
-    // ObjModel bunnymodel("../../data/bunny.obj");
-    // ComputeNormals(&bunnymodel);
-    // BuildTrianglesAndAddToVirtualScene(&bunnymodel);
-
     ObjModel planemodel("../../data/plane.obj");
     ComputeNormals(&planemodel);
     BuildTrianglesAndAddToVirtualScene(&planemodel);
 
-    //ObjModel carmodel("../../models/agera/Koenigsegg-agera.obj");
     ObjModel carmodel("../../models/Jeep_Renegade_2016/Jeep_Renegade_2016.obj");
     ComputeNormals(&carmodel);
     BuildTrianglesAndAddToVirtualScene(&carmodel);
 
-    ObjModel fuscamodel("../../models/fusca/source/volkswagen_beetle_toy_SF/volkswagen_beetle_toy_SF.obj");
-    ComputeNormals(&fuscamodel);
-    BuildTrianglesAndAddToVirtualScene(&fuscamodel);
+    ObjModel barriermodel("../../models/concrete_road_barrier/barrier.obj");
+    ComputeNormals(&barriermodel);
+    BuildTrianglesAndAddToVirtualScene(&barriermodel);
 
     //TESTE
     ObjModel rampa("../../models/pista/ramp.obj");
@@ -566,43 +557,26 @@ int main(int argc, char* argv[])
         // DrawVirtualObject("the_bunny");
 
         //Desenhando plano
-       /* glm::mat4 plane_model = Matrix_Translate(0.0f, -1.0f, 0.0f)
+        glm::mat4 plane_model_matrix = Matrix_Translate(0.0f, -1.0f, 0.0f)
                 *Matrix_Scale(100.0f, 1.0f, 100.0f);
-            BuildBBoxArray("the_plane", plane_model, PLANE);
-*/
+            BuildBBoxArray("the_plane", plane_model_matrix, PLANE);
 
-            //jeep renegade, bboxes
-            BuildBBoxArray("Mesh1 Group1 Model", car_model_matrix, CAR);
-            BuildBBoxArray("Mesh2 Group2 Model", car_model_matrix, CAR);
-            BuildBBoxArray("Mesh3 Group3 Model", car_model_matrix, CAR);
-            BuildBBoxArray("Mesh4 Group4 Model", car_model_matrix, CAR);
-            BuildBBoxArray("Mesh5 Group5 Model", car_model_matrix, CAR);
-            BuildBBoxArray("Mesh6 Group6 Model", car_model_matrix, CAR);
-            BuildBBoxArray("Mesh7 Group7 Model", car_model_matrix, CAR);
-            BuildBBoxArray("Mesh8 Group8 Model", car_model_matrix, CAR);
-            BuildBBoxArray("Mesh9 Group9 Model", car_model_matrix, CAR);
-            BuildBBoxArray("Mesh10 Group10 Model", car_model_matrix, CAR);
-
-        /*################### Desenhando Koenisegg ################################
-        model = Matrix_Translate(1.0f,0.0f,0.0f)
-                *Matrix_Scale(0.1f, 0.1f, 0.1f);
-        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-        glUniform1i(g_object_id_uniform, CAR);
-        DrawVirtualObject("Body_Koenisegg_one.341");
-        DrawVirtualObject("FR_Koenisegg_one.429");
-        DrawVirtualObject("FL_Koenisegg_one.436");
-        DrawVirtualObject("RL_Koenisegg_one.500");
-        DrawVirtualObject("RR_Koenisegg_one.501");
-        //#########################################################################*/
-
-        /*################### Desenhando Fusca #####################################
-        model = Matrix_Translate(1.0f,0.0f,0.0f)
+        glm::mat4 barrier_model_matrix = Matrix_Translate(4.0f, -1.0f, 0.0f)
                 *Matrix_Scale(1.0f, 1.0f, 1.0f);
-        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-        glUniform1i(g_object_id_uniform, FUSCA);
-        DrawVirtualObject("volkswagen_beetle_toy");
-        //#########################################################################*/
-
+            BuildBBoxArray("concrete_road_barrier", barrier_model_matrix, BARRIER);
+                
+        //jeep renegade, bboxes
+        BuildBBoxArray("Mesh1 Group1 Model", car_model_matrix, CAR);
+        BuildBBoxArray("Mesh2 Group2 Model", car_model_matrix, CAR);
+        BuildBBoxArray("Mesh3 Group3 Model", car_model_matrix, CAR);
+        BuildBBoxArray("Mesh4 Group4 Model", car_model_matrix, CAR);
+        BuildBBoxArray("Mesh5 Group5 Model", car_model_matrix, CAR);
+        BuildBBoxArray("Mesh6 Group6 Model", car_model_matrix, CAR);
+        BuildBBoxArray("Mesh7 Group7 Model", car_model_matrix, CAR);
+        BuildBBoxArray("Mesh8 Group8 Model", car_model_matrix, CAR);
+        BuildBBoxArray("Mesh9 Group9 Model", car_model_matrix, CAR);
+        BuildBBoxArray("Mesh10 Group10 Model", car_model_matrix, CAR);
+        
         //verificando colisões
         auto possibleCollisions = SweepAndPrune(boxes);
 
@@ -633,6 +607,7 @@ int main(int argc, char* argv[])
 
         //vetor de objetos a serem desenhados, embaixo pois podem sofrer alteração com colisões
         objects.push_back(std::make_tuple(sphere_model_matrix, "the_sphere", SPHERE));
+        objects.push_back(std::make_tuple(plane_model_matrix, "the_plane", PLANE));
         objects.push_back(std::make_tuple(sphere_model_matrix2, "the_sphere", SPHERE));
 
 
@@ -646,7 +621,8 @@ int main(int argc, char* argv[])
         objects.push_back(std::make_tuple(car_model_matrix, "Mesh8 Group8 Model", CAR));
         objects.push_back(std::make_tuple(car_model_matrix, "Mesh9 Group9 Model", CAR));
         objects.push_back(std::make_tuple(car_model_matrix, "Mesh10 Group10 Model", CAR));
-
+        objects.push_back(std::make_tuple(barrier_model_matrix, "concrete_road_barrier", BARRIER));
+   
         //desenha todos objetos
         DrawAllObjects(objects);
 
@@ -2055,7 +2031,7 @@ void TreatCarCollision(glm::mat4 sphere_model_matrix, float sphereUniformScale, 
     {
         // 1. Get World-Space Sphere (from cached local hull)
         glm::vec3 worldCenter = glm::vec3(sphere_model_matrix * glm::vec4(g_localSphereHull.center, 1.0f));
-        float worldRadius = g_localSphereHull.radius * sphereUniformScale;
+        float worldRadius = g_localSphereHull.radius * (sphereUniformScale*0.85f);
         Sphere worldSphere = { worldCenter, worldRadius, g_localSphereHull.id };
 
         glm::vec3 largestMtv(0.0f);
@@ -2091,6 +2067,62 @@ void TreatCarCollision(glm::mat4 sphere_model_matrix, float sphereUniformScale, 
             // STOP the car's velocity to prevent sinking/jitter.
             // This is the most important part for fixing the "slow ghosting".
             velocidade_atual = -velocidade_atual*0.6f;
+        }
+    }
+    if (collision.second == BARRIER)
+    {
+        glm::vec3 largestMtv(0.0f);
+        bool hasCollided = false;
+
+        // Get Barrier AABB
+        AABB worldBarrierAABB;
+        for (auto ele : boxes)
+        {
+            if (ele.objectId == BARRIER)
+            {
+                worldBarrierAABB = ele;
+                break;
+            }
+        }
+
+        // Car forward vector (Option A)
+        glm::vec3 carForward = glm::normalize(glm::vec3(car_model_matrix * glm::vec4(0,0,-1,0)));
+
+        // Test all OBB hitboxes of car
+        for (const auto& localBox : g_localCarHulls)
+        {
+            OBB worldBox = TransformOBB(localBox, car_model_matrix);
+
+            glm::vec3 mtv;
+            if (AabbObbCollision(worldBarrierAABB, worldBox, mtv))
+            {
+                hasCollided = true;
+                if (glm::length(mtv) > glm::length(largestMtv))
+                    largestMtv = mtv;
+            }
+        }
+
+        if (hasCollided)
+        {
+            // --- PUSH CAR OUT ---
+            translate_carro += glm::vec4(largestMtv, 0.0f);
+
+            // --- REALISTIC SLIDING RESPONSE ---
+
+            // Remove the component of velocity that goes into the wall
+            float normalPush = glm::dot(glm::normalize(largestMtv), carForward);
+
+            // If the car is pushing into the barrier
+            if (normalPush < 0.0f)
+            {
+                // Remove forward velocity into the wall (sliding effect)
+                velocidade_atual *= 0.2f;     // keep only 20% -> slides along the wall
+            }
+            else
+            {
+                // Normal bounce behavior
+                velocidade_atual = -velocidade_atual * 0.3f;
+            }
         }
     }
 

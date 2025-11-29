@@ -22,8 +22,7 @@ uniform mat4 projection;
 #define CAR  0
 #define PLANE  2
 #define SPHERE 1
-#define FUSCA  4
-
+#define BARRIER  4
 
 #define STRAIGHT 5
 #define RAMP 6
@@ -115,32 +114,6 @@ void main()
         Ks = vec3(0.1, 0.1, 0.1);       // Asfalto não brilha muito
         q  = 2.0;                      // Brilho bem suave
     }
-    else if ( object_id == FUSCA)
-    {
-
-        // PREENCHA AQUI as coordenadas de textura do coelho, computadas com
-        // projeção planar XY em COORDENADAS DO MODELO. Utilize como referência
-        // o slides 99-104 do documento Aula_20_Mapeamento_de_Texturas.pdf,
-        // e também use as variáveis min*/max* definidas abaixo para normalizar
-        // as coordenadas de textura U e V dentro do intervalo [0,1]. Para
-        // tanto, veja por exemplo o mapeamento da variável 'p_v' utilizando
-        // 'h' no slides 158-160 do documento Aula_20_Mapeamento_de_Texturas.pdf.
-        // Veja também a Questão 4 do Questionário 4 no Moodle.
-
-        float minx = bbox_min.x;
-        float maxx = bbox_max.x;
-
-        float miny = bbox_min.y;
-        float maxy = bbox_max.y;
-
-        float minz = bbox_min.z;
-        float maxz = bbox_max.z;
-
-        //Mudançcas que não foi possível testar no lab
-
-        U = position_model[0]/(maxx-minx);
-        V = position_model[1]/(maxy-miny);
-    }
     else if ( object_id == CAR )
     {
         vec3 texColor = texture(TextureImage3, texcoords).rgb;
@@ -158,18 +131,56 @@ void main()
         vec3 Kd0 = texture(TextureImage0, sphere_texcoords).rgb;
         color.rgb = Kd0 * cor_v.rgb;
     }
-    else if (object_id == FUSCA){
-        vec3 Kd0 = texture(TextureImage3, vec2(U, V)).rgb; // difusa
-        vec3 Ks0 = texture(TextureImage4, vec2(U, V)).rgb; // especular
-        float gloss = texture(TextureImage5, vec2(U, V)).r; // gloss
 
-        float lambert = max(dot(n, l), 0.0);
-        vec3 diffuse = Kd0 * lambert;
-        vec3 specular = Ks0 * pow(max(dot(r, v), 0.0), gloss * 64.0);
-        vec3 ambient = Kd0 * 0.2;
+    else if (object_id == BARRIER){
+    // --- SAMPLE BARRIER TEXTURES ---
+    // main.cpp loads textures as:
+    // TextureImage4 = ARM (ambient/roughness/metal in channels)
+    // TextureImage5 = DIFFUSE / ALBEDO
+    // TextureImage6 = NORMAL
 
-        color.rgb = diffuse + specular + ambient;
+    // Local light definitions (keep this block self-contained)
+    vec3 I  = vec3(1.0, 1.0, 1.0);
+    vec3 Ia = vec3(0.2, 0.2, 0.2);
+
+    // Sample textures (use the order from main.cpp)
+    vec3 armMap    = texture(TextureImage4, texcoords).rgb; // AO / Rough / Metal
+    vec3 albedo    = texture(TextureImage5, texcoords).rgb; // Diffuse / Albedo
+    vec3 normalMap = texture(TextureImage6, texcoords).rgb; // Normal map (if you later add TBN)
+
+    // Extract channels
+    float ao        = armMap.r;
+    float roughness = clamp(armMap.g, 0.0, 1.0);
+    // float metallic = armMap.b; // unused for now
+
+    // Convert interpolated vec4 variables to vec3 for math here (no change outside)
+    vec3 n3 = normalize(n.xyz);
+    vec3 l3 = normalize(l.xyz);
+    vec3 v3 = normalize(v.xyz);
+    // reflection will be computed below using vec3 functions
+    // If you later pass TBN from vertex shader, replace final_normal with TBN*tangent_normal
+    vec3 final_normal = n3;
+
+    // Material coefficients (map your PBR-ish maps to Phong terms)
+    Kd = albedo;
+    Ka = albedo * 0.3 * ao;            // ambient scaled by AO
+    Ks = vec3(0.5, 0.5, 0.5);          // tweakable specular color
+    q  = mix(256.0, 10.0, roughness);  // shininess derived from roughness
+
+    // Phong lighting (using vec3)
+    float lambert = max(dot(final_normal, l3), 0.0);
+    vec3 lambert_diffuse_term = Kd * I * lambert;
+
+    vec3 ambient_term = Ka * Ia;
+
+    // Use reflect() for specular direction (vec3)
+    vec3 refl = reflect(-l3, final_normal);
+    float specFactor = pow( max(dot(refl, v3), 0.0), q );
+    vec3 phong_specular_term = Ks * I * specFactor;
+
+    color.rgb = lambert_diffuse_term + phong_specular_term + ambient_term;
     }
+
     else{
         // Espectro da fonte de iluminação
         vec3 I = vec3(1.0,1.0,1.0); // PREENCH AQUI o espectro da fonte de luz
