@@ -20,8 +20,8 @@ uniform mat4 projection;
 
 // Identificador que define qual objeto está sendo desenhado no momento
 #define CAR  0
-#define PLANE  2
 #define SPHERE 1
+#define PLANE  2
 #define BARRIER  4
 
 #define STRAIGHT 5

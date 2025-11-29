@@ -8,11 +8,19 @@
 set(SOURCES
   src/main.cpp
   src/textrendering.cpp
-  src/tiny_obj_loader.cpp
   src/glad.c
+  src/tiny_obj_loader.cpp
   src/stb_image.cpp
   src/collisions.cpp
-
+  include/types.h
+  src/renderer.cpp
+  include/renderer.h
+  include/input.h
+  include/car.h
+  include/track.h
+  src/car.cpp
+  src/track.cpp
+  src/input.cpp
 )
 
 cmake_minimum_required(VERSION 3.5.0)
