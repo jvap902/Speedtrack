@@ -5,7 +5,7 @@
 //    INF01047 Fundamentos de Computação Gráfica
 //               Prof. Eduardo Gastal
 //
-//                   LABORATÓRIO 5 (Refatorado)
+//                   (Refatorado)
 //
 
 #include <cmath>
