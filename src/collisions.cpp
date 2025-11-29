@@ -1,16 +1,15 @@
-#include "../include/collisions.h"
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtx/norm.hpp>
-#include <glm/gtc/type_ptr.hpp>
-#include <glad/glad.h>
+#include "collisions.h"
+#include <unordered_map> // Needed for the hash map optimization
+#include <algorithm>
 
+// Internal helper struct (only used in this file)
 struct Endpoint {
     float value;
     int boxId;
     bool isMin;
 };
 
-std::set<std::pair<int,int>> SweepAndPrune(std::vector<AABB>& boxes)
+std::set<std::pair<int,int>> SweepAndPrune(const std::vector<AABB>& boxes)
 {
     std::set<std::pair<int,int>> possible;
     std::vector<Endpoint> endpoints;
@@ -27,7 +26,7 @@ std::set<std::pair<int,int>> SweepAndPrune(std::vector<AABB>& boxes)
     std::sort(endpoints.begin(), endpoints.end(),
               [](const Endpoint& a, const Endpoint& b){ return a.value < b.value; });
 
-    // Precompute fast lookup from id → box
+    // Precompute fast lookup from id -> box
     std::unordered_map<int, const AABB*> idToBox;
     idToBox.reserve(boxes.size());
     for (const auto& box : boxes)
@@ -134,7 +133,6 @@ bool SSCollision(const Sphere& s1, const Sphere& s2){
     return distance < (s1.radius + s2.radius);
 }
 
-// Builds a compound hitbox (multiple OBBs) from an ObjModel
 std::vector<OBB> BuildCompoundHitbox(const ObjModel& model, const glm::mat4& transform, int id)
 {
     std::vector<OBB> hitboxes;
@@ -145,7 +143,7 @@ std::vector<OBB> BuildCompoundHitbox(const ObjModel& model, const glm::mat4& tra
         glm::vec3 minBounds( FLT_MAX);
         glm::vec3 maxBounds(-FLT_MAX);
 
-        // Build local bounding box
+        // Each shape has its own mesh of indices
         for (size_t i = 0; i < shape.mesh.indices.size(); ++i)
         {
             int idx = shape.mesh.indices[i].vertex_index * 3;
@@ -156,28 +154,21 @@ std::vector<OBB> BuildCompoundHitbox(const ObjModel& model, const glm::mat4& tra
             maxBounds = glm::max(maxBounds, v);
         }
 
-        glm::vec3 center   = (minBounds + maxBounds) * 0.5f;
+        // Compute center and half-size in object space
+        glm::vec3 center = (minBounds + maxBounds) * 0.5f;
         glm::vec3 halfSize = (maxBounds - minBounds) * 0.5f;
 
-        // Transform center to world space
+        // Transform center into world space
         glm::vec3 worldCenter = glm::vec3(transform * glm::vec4(center, 1.0f));
 
-        // Extract world axes from rotation part
+        // Extract world axes from the model matrix
         glm::vec3 worldAxisX = glm::normalize(glm::vec3(transform[0]));
         glm::vec3 worldAxisY = glm::normalize(glm::vec3(transform[1]));
         glm::vec3 worldAxisZ = glm::normalize(glm::vec3(transform[2]));
 
-        // Apply scaling from model matrix to halfSize
-        glm::vec3 scaledHalfSize = glm::vec3(
-            halfSize.x * glm::length(glm::vec3(transform[0])),
-            halfSize.y * glm::length(glm::vec3(transform[1])),
-            halfSize.z * glm::length(glm::vec3(transform[2]))
-        );
-
-        // Build final OBB
         OBB obb;
         obb.center = worldCenter;
-        obb.halfSize = scaledHalfSize;
+        obb.halfSize = halfSize;
         obb.axis[0] = worldAxisX;
         obb.axis[1] = worldAxisY;
         obb.axis[2] = worldAxisZ;
@@ -188,7 +179,6 @@ std::vector<OBB> BuildCompoundHitbox(const ObjModel& model, const glm::mat4& tra
 
     return hitboxes;
 }
-
 
 bool CHitboxSphereCollision(const OBB& box, const Sphere& sphere, glm::vec3& mtv){
     glm::vec3 d = sphere.center - box.center;
@@ -217,9 +207,8 @@ bool CHitboxSphereCollision(const OBB& box, const Sphere& sphere, glm::vec3& mtv
     if (distance < 0.00001f)
     {
         // Sphere center is right on (or inside) the closest point.
-        // We need a fallback direction. Use box-to-sphere center.
         mtv_direction = glm::normalize(sphere.center - box.center);
-        
+
         // Failsafe for if they are at the *exact* same spot
         if (glm::length(mtv_direction) < 0.0001f)
              mtv_direction = glm::vec3(0, 1, 0); // Push up
@@ -228,85 +217,100 @@ bool CHitboxSphereCollision(const OBB& box, const Sphere& sphere, glm::vec3& mtv
     {
         mtv_direction = toSphere / distance; // Normalized vector from closest point to sphere center
     }
-    
+
     // We want the vector to push the *box* (the car)
-    // It should be in the opposite direction of the penetration.
     mtv = -mtv_direction * penetrationDepth;
     return true;
 }
 
-bool AabbObbCollision(const AABB& aabb, const OBB& obb, glm::vec3& mtv)
-{
-    // AABB center + half size
-    glm::vec3 aCenter = (aabb.min + aabb.max) * 0.5f;
-    glm::vec3 aHalf   = (aabb.max - aabb.min) * 0.5f;
+// REFACTORED FUNCTION
+// It now asks for the data it needs instead of guessing global variables
+void BuildBBoxArray(const std::map<std::string, SceneObject>& virtualScene,
+                    std::vector<AABB>& boxes,
+                    int& bboxId,
+                    const std::string& name,
+                    const glm::mat4& modelMatrix,
+                    int objectId) {
 
-    glm::vec3 aAxes[3] = {
-        glm::vec3(1,0,0),
-        glm::vec3(0,1,0),
-        glm::vec3(0,0,1)
+    // Use the passed map, not g_VirtualScene
+    const auto& obj = virtualScene.at(name);
+
+    // Local-space AABB corners
+    glm::vec3 minLocal = obj.bbox_min;
+    glm::vec3 maxLocal = obj.bbox_max;
+
+    glm::vec3 corners[8] = {
+        {minLocal.x, minLocal.y, minLocal.z},
+        {maxLocal.x, minLocal.y, minLocal.z},
+        {minLocal.x, maxLocal.y, minLocal.z},
+        {minLocal.x, minLocal.y, maxLocal.z},
+        {maxLocal.x, maxLocal.y, minLocal.z},
+        {minLocal.x, maxLocal.y, maxLocal.z},
+        {maxLocal.x, minLocal.y, maxLocal.z},
+        {maxLocal.x, maxLocal.y, maxLocal.z}
     };
 
-    float bestOverlap = FLT_MAX;
-    glm::vec3 bestAxis(0.0f);
+    glm::vec3 worldMin(FLT_MAX);
+    glm::vec3 worldMax(-FLT_MAX);
 
-    glm::vec3 delta = obb.center - aCenter;
-
-    auto testAxis = [&](const glm::vec3& rawAxis)
+    // Transform all corners by model matrix and recompute world AABB
+    for (auto& c : corners)
     {
-        glm::vec3 axis = glm::normalize(rawAxis);
-
-        float aProj =
-            fabs(glm::dot(aAxes[0], axis)) * aHalf.x +
-            fabs(glm::dot(aAxes[1], axis)) * aHalf.y +
-            fabs(glm::dot(aAxes[2], axis)) * aHalf.z;
-
-        float bProj =
-            fabs(glm::dot(obb.axis[0], axis)) * obb.halfSize.x +
-            fabs(glm::dot(obb.axis[1], axis)) * obb.halfSize.y +
-            fabs(glm::dot(obb.axis[2], axis)) * obb.halfSize.z;
-
-        float dist = fabs(glm::dot(delta, axis));
-
-        float overlap = aProj + bProj - dist;
-
-        if (overlap < 0.0f)
-            return false;  // separating axis found
-
-        if (overlap < bestOverlap)
-        {
-            bestOverlap = overlap;
-
-            glm::vec3 fixedAxis = axis;
-            if (glm::dot(delta, fixedAxis) < 0)
-                fixedAxis = -fixedAxis;
-
-            bestAxis = fixedAxis;
-        }
-        return true;
-    };
-
-    // Test AABB axes
-    for (int i = 0; i < 3; i++)
-        if (!testAxis(aAxes[i])) return false;
-
-    // Test OBB axes
-    for (int i = 0; i < 3; i++)
-        if (!testAxis(obb.axis[i])) return false;
-
-    // Test cross axes (AABB vs OBB)
-    for (int i = 0; i < 3; i++)
-    {
-        for (int j = 0; j < 3; j++)
-        {
-            glm::vec3 axis = glm::cross(aAxes[i], obb.axis[j]);
-            if (glm::length2(axis) > 1e-6f)  // avoid degenerate axis
-            {
-                if (!testAxis(axis)) return false;
-            }
-        }
+        glm::vec4 transformed = modelMatrix * glm::vec4(c, 1.0f);
+        worldMin = glm::min(worldMin, glm::vec3(transformed));
+        worldMax = glm::max(worldMax, glm::vec3(transformed));
     }
 
-    mtv = bestAxis * bestOverlap;
-    return true;
+    AABB box;
+    box.min = worldMin;
+    box.max = worldMax;
+    box.id = bboxId++;
+    box.objectId = objectId;
+
+    boxes.push_back(box);
+}
+
+OBB TransformOBB(const OBB& localBox, const glm::mat4& transform) {
+    OBB worldBox;
+
+    // Transform center
+    worldBox.center = glm::vec3(transform * glm::vec4(localBox.center, 1.0f));
+    worldBox.id = localBox.id;
+
+    // Transform axes (assumes local axes are 1,0,0 etc.)
+    worldBox.axis[0] = glm::normalize(glm::vec3(transform[0])); // X-axis
+    worldBox.axis[1] = glm::normalize(glm::vec3(transform[1])); // Y-axis
+    worldBox.axis[2] = glm::normalize(glm::vec3(transform[2])); // Z-axis
+
+    // Apply scale from the transform to the halfSize
+    float scale = glm::length(glm::vec3(transform[0]));
+    worldBox.halfSize = localBox.halfSize * scale;
+
+    return worldBox;
+}
+
+bool SphereSphereCollision(const ObjModel& obj1, const ObjModel& obj2,
+                           glm::mat4 object1_matrix, int object1_id,
+                           glm::mat4 object2_matrix, int object2_id,
+                           float object1_uniformScale, float object2_UniformScale){
+
+    Sphere boundingSphere1 = BoundingSphere(obj1, object1_id);
+    Sphere boundingSphere2 = BoundingSphere(obj2, object2_id);
+
+    glm::vec3 worldCenter = glm::vec3(object1_matrix * glm::vec4(boundingSphere1.center, 1.0f));
+    float worldRadius = boundingSphere1.radius * object1_uniformScale;
+
+    Sphere worldSphere = { worldCenter, worldRadius, boundingSphere1.id };
+
+    worldCenter = glm::vec3(object2_matrix * glm::vec4(boundingSphere2.center, 1.0f));
+    worldRadius = boundingSphere2.radius * object2_UniformScale;
+
+    Sphere worldCar = { worldCenter, worldRadius, boundingSphere2.id };
+
+    if (SSCollision(worldCar, worldSphere))
+    {
+        return true;
+    }
+
+    return false;
 }
