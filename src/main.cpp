@@ -252,6 +252,7 @@ int main(int argc, char* argv[])
     g_Sphere.position = glm::vec3(-30.0f, -0.3f, 0.0f);
     g_Sphere.angle    = 0.0f;
     g_Sphere.speed    = 0.0f;
+    g_Sphere.direction = glm::vec3(0.0f, 0.0f, 1.0f);
 
     // Controle de Tempo
     float prev_time = (float)glfwGetTime();
@@ -294,9 +295,10 @@ int main(int argc, char* argv[])
 
         // Guarda posição anterior para resolução de colisão
         glm::vec3 last_car_pos = g_Car.position;
+        glm::vec3 last_sphere_pos = g_Sphere.position;
 
         CarControl(g_Car, g_State.input, deltaTime);
-        SphereControl(g_Sphere, g_Car, deltaTime);
+        SphereControl(g_Sphere, deltaTime);
 
         if (g_State.input.camera_mode) // Câmera Livre
         {
@@ -398,7 +400,6 @@ int main(int argc, char* argv[])
             * Matrix_Rotate_Y(glm::radians(g_Sphere.angle))
             * Matrix_Scale(sphere2UniformScale, sphere2UniformScale, sphere2UniformScale)
             * Matrix_Identity();
-        g_TrackObjects.push_back(std::make_tuple(sphere_model_matrix2, "the_sphere", SPHERE2));
         BuildBBoxArray(g_VirtualScene, currentFrameBoxes, bbox_id_counter, "the_sphere", sphere_model_matrix2, SPHERE2);
 
         // Broadphase
@@ -415,6 +416,11 @@ int main(int argc, char* argv[])
         if (possibleCollisions.count({CAR, BARRIER})) {
             TreatCarBarrierCollision(car_model_matrix, {CAR, BARRIER}, g_Car, last_car_pos, g_localCarHulls, g_localBarrierHull);
         }
+        if (possibleCollisions.count({SPHERE1, SPHERE2})) {
+            if (SphereSphereCollision(spheremodel, spheremodel, sphere_model_matrix, SPHERE1, sphere_model_matrix2, SPHERE2, sphere1UniformScale, sphere2UniformScale)){
+                SphereSphereBounce( sphere_model_matrix2, sphere2UniformScale, SPHERE2, sphere_model_matrix, sphere1UniformScale, SPHERE1, g_Sphere, g_localSphereHull);
+            }
+        }
 
         // Nota: Se você tiver colisão CAR vs PLANE ou CAR vs WALL, adicione aqui usando TreatCarCollision (adaptando para OBB vs OBB se necessário)
 
@@ -422,6 +428,11 @@ int main(int argc, char* argv[])
 
         // Desenha Pista Estática (incluindo esferas)
         DrawAllObjects(g_TrackObjects, g_VirtualScene, g_Shader);
+
+        // Desenha esfera que se move
+        std::vector<std::tuple<glm::mat4, const char*, int>> MovingSphere;
+        MovingSphere.push_back(std::make_tuple(sphere_model_matrix2, "the_sphere", SPHERE2));
+        DrawAllObjects(MovingSphere, g_VirtualScene, g_Shader);
 
         // Desenha Carro Dinâmico
         // (Poderíamos otimizar não recriando o vetor todo frame, mas é ok para poucas partes)
