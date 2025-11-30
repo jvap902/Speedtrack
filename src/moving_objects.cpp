@@ -83,5 +83,17 @@ void CarMovingSphere(const glm::mat4 sphere_model_matrix, const glm::mat4& car_m
 
 void SphereSphereBounce(const glm::mat4& moving_model, float moving_scale, int moving_id, const glm::mat4& static_model, float static_scale, int static_id, MovingSphereState& movingSphere, const Sphere& localHull)
 {
-    
+    auto pos_static = glm::vec3(-1.0f, 0.0f, 0.0f);
+
+    auto collision_point = movingSphere.position + (moving_scale/(moving_scale-static_scale))*(pos_static - movingSphere.position);
+
+    auto p_normal = glm::normalize(collision_point-pos_static);
+
+    auto angle = glm::dot(p_normal, movingSphere.direction);
+
+    movingSphere.direction[0] = movingSphere.direction[0] - sin(angle);
+    movingSphere.direction[2] = movingSphere.direction[2] - cos(angle);
+
+    movingSphere.direction = glm::normalize(movingSphere.direction);
+
 }

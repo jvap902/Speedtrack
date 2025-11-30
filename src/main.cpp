@@ -122,7 +122,9 @@ int main(int argc, char* argv[])
 
     // Para janela em modo janela, use:
     // GLFWwindow* window = glfwCreateWindow(1600, 900, "SpeedTrack", NULL, NULL);
-    GLFWwindow* window = glfwCreateWindow(mode->width, mode->height, "SpeedTrack", monitor, NULL);
+    GLFWwindow* window = glfwCreateWindow(mode->width, mode->height, "SpeedTrack", NULL, NULL);
+    glfwSetWindowAttrib(window, GLFW_DECORATED, GLFW_FALSE); // no borders
+    glfwSetWindowPos(window, 0, 0);
     if (!window) {
         glfwTerminate();
         fprintf(stderr, "ERROR: glfwCreateWindow() failed.\n");
