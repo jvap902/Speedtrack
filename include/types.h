@@ -10,8 +10,9 @@
 
 // Object IDs
 #define CAR    0
-#define SPHERE 1
+#define SPHERE1 1
 #define PLANE  2
+#define SPHERE2 3
 #define BARRIER  4
 #define STRAIGHT 5
 #define RAMP 6
@@ -68,6 +69,12 @@ struct InputState {
 };
 
 struct CarState {
+    glm::vec3 position;
+    float angle;
+    float speed;
+};
+
+struct MovingSphereState {
     glm::vec3 position;
     float angle;
     float speed;

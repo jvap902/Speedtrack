@@ -33,6 +33,7 @@
 #include "input.h"
 #include "car.h"
 #include "track.h"
+#include "moving_objects.h"
 
 // Declaração de funções auxiliares para renderizar texto dentro da janela
 
@@ -58,6 +59,7 @@ void TextRendering_ShowFramesPerSecond(GLFWwindow* window);
 GameState     g_State;
 CarState      g_Car;
 ShaderProgram g_Shader;
+MovingSphereState g_Sphere;
 
 // Estruturas de Dados da Cena
 std::map<std::string, SceneObject> g_VirtualScene; // Geometria visual
@@ -156,13 +158,15 @@ int main(int argc, char* argv[])
     LoadShadersFromFiles(g_Shader);
 
     //carregando texturas
-    LoadTextureImage("../../data/tc-earth_daymap_surface.jpg", g_NumLoadedTextures);      // 0
-    LoadTextureImage("../../data/tc-earth_nightmap_citylights.gif", g_NumLoadedTextures); // 1
+    LoadTextureImage("../../models/sphere_textures/rock_boulder_dry_diff_4k.jpg", g_NumLoadedTextures); // 0
+    LoadTextureImage("../../models/sphere_textures/rock_boulder_dry_disp_4k.png", g_NumLoadedTextures); // 1
     LoadTextureImage("../../data/asfalto.jpg", g_NumLoadedTextures);                      // 2
     LoadTextureImage("../../models/Jeep_Renegade_2016/Jeep_Renegade_2016/car_jeep_ren.jpg", g_NumLoadedTextures); // 3
     LoadTextureImage("../../models/concrete_road_barrier/textures/concrete_road_barrier_arm_4k.jpg", g_NumLoadedTextures); // 4
     LoadTextureImage("../../models/concrete_road_barrier/textures/concrete_road_barrier_diff_4k.jpg", g_NumLoadedTextures); // 5
     LoadTextureImage("../../models/concrete_road_barrier/textures/concrete_road_barrier_nor_gl_4k.jpg", g_NumLoadedTextures); // 6
+    LoadTextureImage("../../models/sphere_textures/beige_wall_001_diff_4k.jpg", g_NumLoadedTextures); // 7
+    LoadTextureImage("../../models/sphere_textures/beige_wall_001_disp_4k.png", g_NumLoadedTextures); // 8
 
     // Carrega Modelos
     // Esfera
@@ -198,6 +202,7 @@ int main(int argc, char* argv[])
     ComputeNormals(&curva);
     BuildTrianglesAndAddToVirtualScene(g_VirtualScene, &curva);
 
+    // Barreira
     ObjModel barriermodel("../../models/concrete_road_barrier/barrier.obj");
     ComputeNormals(&barriermodel);
     BuildTrianglesAndAddToVirtualScene(g_VirtualScene, &barriermodel);
@@ -212,14 +217,10 @@ int main(int argc, char* argv[])
     BuildTrack(g_TrackObjects, g_VirtualScene, g_CollisionBoxes, bbox_id_counter, cursor);
 
     // Adiciona esferas estáticas à cena
-    float sphereUniformScale = 1.0f;
-    glm::mat4 sphere_model_matrix = Matrix_Translate(-1.0f,0.0f,0.0f) * Matrix_Scale(sphereUniformScale, sphereUniformScale, sphereUniformScale);
-    g_TrackObjects.push_back(std::make_tuple(sphere_model_matrix, "the_sphere", SPHERE));
-    BuildBBoxArray(g_VirtualScene, g_CollisionBoxes, bbox_id_counter, "the_sphere", sphere_model_matrix, SPHERE);
-
-    glm::mat4 sphere_model_matrix2 = Matrix_Translate(-30.0f,0.0f, 0.0f) * Matrix_Scale(sphereUniformScale, sphereUniformScale, sphereUniformScale);
-    g_TrackObjects.push_back(std::make_tuple(sphere_model_matrix2, "the_sphere", SPHERE));
-    BuildBBoxArray(g_VirtualScene, g_CollisionBoxes, bbox_id_counter, "the_sphere", sphere_model_matrix2, SPHERE);
+    float sphere1UniformScale = 1.0f;
+    glm::mat4 sphere_model_matrix = Matrix_Translate(-1.0f, 0.0f, 0.0f) * Matrix_Scale(sphere1UniformScale, sphere1UniformScale, sphere1UniformScale);
+    g_TrackObjects.push_back(std::make_tuple(sphere_model_matrix, "the_sphere", SPHERE1));
+    BuildBBoxArray(g_VirtualScene, g_CollisionBoxes, bbox_id_counter, "the_sphere", sphere_model_matrix, SPHERE1);
 
     // Adiciona barreira à cena
     glm::mat4 barrier_model_matrix = Matrix_Translate(4.0f, -1.0f, 0.0f) * Matrix_Scale(1.0f, 1.0f, 1.0f);
@@ -229,7 +230,7 @@ int main(int argc, char* argv[])
 
     // 4. Inicialização de Física e Colisão
     printf("Building local-space collision hulls...\n");
-    g_localSphereHull = BoundingSphere(spheremodel, SPHERE);
+    g_localSphereHull = BoundingSphere(spheremodel, SPHERE1);
     g_localCarHulls   = BuildCompoundHitbox(carmodel, Matrix_Identity(), CAR);
     g_localBarrierHull = g_CollisionBoxes[barrierHullId];
     printf("Hulls built.\n");
@@ -246,6 +247,11 @@ int main(int argc, char* argv[])
     g_Car.position = glm::vec3(2.0f, -1.0f, 0.0f);
     g_Car.angle    = 0.0f;
     g_Car.speed    = 0.0f;
+
+    // Setup inicial da esfera que se move
+    g_Sphere.position = glm::vec3(-30.0f, -0.3f, 0.0f);
+    g_Sphere.angle    = 0.0f;
+    g_Sphere.speed    = 0.0f;
 
     // Controle de Tempo
     float prev_time = (float)glfwGetTime();
@@ -289,9 +295,11 @@ int main(int argc, char* argv[])
         // Guarda posição anterior para resolução de colisão
         glm::vec3 last_car_pos = g_Car.position;
 
+        CarControl(g_Car, g_State.input, deltaTime);
+        SphereControl(g_Sphere, g_Car, deltaTime);
+
         if (g_State.input.camera_mode) // Câmera Livre
         {
-            CarControl(g_Car, g_State.input, deltaTime);
             // Lógica de câmera livre (Orbital/Free)
             // Usa g_State.cameraTheta/Phi atualizados pelo input
             float r = g_State.cameraDistance;
@@ -321,7 +329,6 @@ int main(int argc, char* argv[])
             camera_view_vector = camera_lookat_l - camera_position_c;
             camera_up_vector   = glm::vec4(0.0f,1.0f,0.0f,0.0f);
             */
-            CarControl(g_Car, g_State.input, deltaTime);
 
             // --- LÓGICA DE SUAVIZAÇÃO (INTERPOLAÇÃO) ---
 
@@ -385,16 +392,25 @@ int main(int argc, char* argv[])
         BuildBBoxArray(g_VirtualScene, currentFrameBoxes, current_bbox_id, "Mesh9 Group9 Model", car_model_matrix, CAR);
         BuildBBoxArray(g_VirtualScene, currentFrameBoxes, current_bbox_id, "Mesh10 Group10 Model", car_model_matrix, CAR);
 
+        // Esfera que pode se mexer
+        float sphere2UniformScale = 0.6f;
+        glm::mat4 sphere_model_matrix2 = Matrix_Translate(g_Sphere.position.x, g_Sphere.position.y, g_Sphere.position.z) 
+            * Matrix_Rotate_Y(glm::radians(g_Sphere.angle))
+            * Matrix_Scale(sphere2UniformScale, sphere2UniformScale, sphere2UniformScale)
+            * Matrix_Identity();
+        g_TrackObjects.push_back(std::make_tuple(sphere_model_matrix2, "the_sphere", SPHERE2));
+        BuildBBoxArray(g_VirtualScene, currentFrameBoxes, bbox_id_counter, "the_sphere", sphere_model_matrix2, SPHERE2);
+
         // Broadphase
         auto possibleCollisions = SweepAndPrune(currentFrameBoxes);
 
-        if (possibleCollisions.count({CAR, SPHERE}))
-        {
+        if (possibleCollisions.count({CAR, SPHERE1})){
             // Verifica colisão contra a Esfera 1
-            TreatCarSphereCollision(sphere_model_matrix, sphereUniformScale, car_model_matrix, {CAR, SPHERE}, g_Car, last_car_pos, g_localSphereHull, g_localCarHulls);
-
+            TreatCarSphereCollision(sphere_model_matrix, sphere1UniformScale, car_model_matrix, {CAR, SPHERE1}, g_Car, last_car_pos, g_localSphereHull, g_localCarHulls, g_Sphere);
+        }
+        if(possibleCollisions.count({CAR, SPHERE2})){
             // Verifica colisão contra a Esfera 2
-            TreatCarSphereCollision(sphere_model_matrix2, sphereUniformScale, car_model_matrix, {CAR, SPHERE}, g_Car, last_car_pos, g_localSphereHull, g_localCarHulls);
+            TreatCarSphereCollision(sphere_model_matrix2, sphere2UniformScale, car_model_matrix, {CAR, SPHERE2}, g_Car, last_car_pos, g_localSphereHull, g_localCarHulls, g_Sphere);
         }
         if (possibleCollisions.count({CAR, BARRIER})) {
             TreatCarBarrierCollision(car_model_matrix, {CAR, BARRIER}, g_Car, last_car_pos, g_localCarHulls, g_localBarrierHull);
@@ -430,10 +446,10 @@ int main(int argc, char* argv[])
                 DrawDebugBox(box, view, projection, g_Shader, g_VirtualScene);
 
             // Debug Spheres
-            Sphere s1 = { glm::vec3(sphere_model_matrix * glm::vec4(g_localSphereHull.center, 1.0f)), g_localSphereHull.radius * sphereUniformScale, 0 };
+            Sphere s1 = { glm::vec3(sphere_model_matrix * glm::vec4(g_localSphereHull.center, 1.0f)), g_localSphereHull.radius * sphere1UniformScale, 0 };
             DrawDebugSphere(s1, view, projection, g_Shader, g_VirtualScene);
 
-            Sphere s2 = { glm::vec3(sphere_model_matrix2 * glm::vec4(g_localSphereHull.center, 1.0f)), g_localSphereHull.radius * sphereUniformScale, 0 };
+            Sphere s2 = { glm::vec3(sphere_model_matrix2 * glm::vec4(g_localSphereHull.center, 1.0f)), g_localSphereHull.radius * sphere1UniformScale, 0 };
             DrawDebugSphere(s2, view, projection, g_Shader, g_VirtualScene);
         }
 

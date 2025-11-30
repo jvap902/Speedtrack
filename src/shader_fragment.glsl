@@ -20,8 +20,9 @@ uniform mat4 projection;
 
 // Identificador que define qual objeto está sendo desenhado no momento
 #define CAR  0
-#define SPHERE 1
+#define SPHERE1 1
 #define PLANE  2
+#define SPHERE2 3
 #define BARRIER  4
 
 #define STRAIGHT 5
@@ -42,6 +43,8 @@ uniform sampler2D TextureImage3;
 uniform sampler2D TextureImage4;
 uniform sampler2D TextureImage5;
 uniform sampler2D TextureImage6;
+uniform sampler2D TextureImage7;
+uniform sampler2D TextureImage8;
 
 // Novo atributo in para Gouraud Shading da esfera
 in vec4 cor_v;
@@ -125,11 +128,54 @@ void main()
         q  = 64.0;                      // Brilho moderado
     }
 
-    // Esfera utiliza Gouraud Shading
-    if (object_id == SPHERE){
-        // Obtemos a refletância difusa a partir da leitura da imagem TextureImage0
-        vec3 Kd0 = texture(TextureImage0, sphere_texcoords).rgb;
-        color.rgb = Kd0 * cor_v.rgb;
+    
+    if (object_id == SPHERE1 || object_id == SPHERE2){
+
+        vec4 bbox_center = (bbox_min + bbox_max) / 2.0;
+
+        float raio = 1.0;
+
+        vec4 pc = normalize(position_model - bbox_center);
+
+        vec4 pl = bbox_center + raio*pc;
+
+        vec4 vecp = pl - bbox_center;
+
+        float theta = atan(pl[0], pl[2]);
+        float phi = asin(pl[1]/raio);
+
+        U = (theta + M_PI) / (2.0*M_PI);
+        V = (phi + M_PI/2.0) / M_PI;
+
+        vec2 sphereUV = vec2(U, V);
+
+        vec3 Kd0;
+        float ao;
+        vec3 texColor;
+
+        if (object_id == SPHERE1){
+
+            Kd0 = texture(TextureImage0, sphereUV).rgb;
+            ao = texture(TextureImage1, sphereUV).r;
+
+            texColor = texture(TextureImage1, (texcoords* 25.0)).rgb ;
+        }
+        else {
+            Kd0 = texture(TextureImage7, sphereUV).rgb;
+            ao = texture(TextureImage8, sphereUV).r;
+
+            texColor = texture(TextureImage7, (texcoords* 25.0)).rgb ;
+        }
+
+
+        float lambert = max(0, dot(n,l));
+
+        Ka = texColor * 0.3;            // Ambiente mais fraco
+        vec3 Ia = vec3(0.2, 0.2, 0.2);
+
+        vec3 ambient_term = Ka * Ia;
+
+        color.rgb = Kd0 * (lambert * ao + 0.1 * ao) + ambient_term;
     }
 
     else if (object_id == BARRIER){
