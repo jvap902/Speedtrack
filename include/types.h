@@ -17,6 +17,7 @@
 #define STRAIGHT 5
 #define RAMP 6
 #define TURN 7
+#define SPHEREBEZIER 8
 
 // Constants
 const float TRACK_Y = -0.99f;
