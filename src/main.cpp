@@ -465,6 +465,8 @@ int main(int argc, char* argv[])
         // 8. Interface de Texto
         TextRendering_ShowFramesPerSecond(window);
 
+        TimeControl(window, deltaTime);
+
         glfwSwapBuffers(window);
         glfwPollEvents();
     }

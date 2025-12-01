@@ -1,6 +1,11 @@
 #include "input.h"
 #include "types.h" // Precisamos da definição de GameState
 #include <cmath>
+#include <string>
+
+void TextRendering_PrintString(GLFWwindow* window, const std::string &str, float x, float y, float scale = 1.0f);
+float TextRendering_LineHeight(GLFWwindow* window);
+float TextRendering_CharWidth(GLFWwindow* window);
 
 // Helper para pegar o estado a partir da janela GLFW
 GameState* GetState(GLFWwindow* window) {
@@ -71,6 +76,15 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
     if (key == GLFW_KEY_D) {
         if (action == GLFW_PRESS) state->input.d = true;
         else if (action == GLFW_RELEASE) state->input.d = false;
+    }
+
+    if (key == GLFW_KEY_SPACE && action == GLFW_PRESS){
+        state->input.run_time = !state->input.run_time;
+    }
+
+    if (key == GLFW_KEY_R && action == GLFW_PRESS){
+        state->input.run_time = false;
+        state->time = 0.0f;
     }
 
     // Modos de Debug
@@ -153,4 +167,24 @@ void ScrollCallback(GLFWwindow* window, double xoffset, double yoffset)
     const float verysmallnumber = std::numeric_limits<float>::epsilon();
     if (state->cameraDistance < verysmallnumber)
         state->cameraDistance = verysmallnumber;
+}
+
+void TimeControl(GLFWwindow* window, float delta){
+    GameState* state = GetState(window);
+
+    if (state->input.run_time){
+        state->time += delta;
+    }
+
+    static float old_seconds = (float)glfwGetTime();
+    static int   ellapsed_frames = 0;
+    static char  buffer[20] = "0.00";
+    static int   numchars = 7;
+
+    float lineheight = TextRendering_LineHeight(window);
+    float charwidth = TextRendering_CharWidth(window);
+
+    snprintf(buffer, 20, "%.2f", state->time);
+
+    TextRendering_PrintString(window, buffer, 0.0f, 1.0f-(lineheight*3.0f), 3.0f);    
 }

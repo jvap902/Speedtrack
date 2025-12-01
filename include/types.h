@@ -67,6 +67,7 @@ struct TrackCursor {
 // Input flags specifically for the Car physics logic
 struct InputState {
     bool w = false, s = false, a = false, d = false;
+    bool run_time = false;
     bool debug_mode = false;
     bool camera_mode = false;
 };
@@ -106,6 +107,8 @@ struct GameState {
     bool mouseMiddlePressed = false;
     double lastCursorX = 0.0;
     double lastCursorY = 0.0;
+
+    float time = 0.0f;
 };
 
 struct ObjModel
