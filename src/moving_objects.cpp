@@ -1,5 +1,6 @@
 #include "moving_objects.h"
 #include <algorithm>
+#include "collisions.h"
 
 void SphereControl(MovingSphereState& sphere, float deltaTime)
 {
@@ -38,7 +39,6 @@ void SphereControl(MovingSphereState& sphere, float deltaTime)
     if (sphere.angle > 360.0f) sphere.angle = fmod(sphere.angle, 360.0f);
     if (sphere.angle < 0.0f)   sphere.angle = fmod(sphere.angle, 360.0f) + 360.0f;
 }
-
 
 
 void CarMovingSphere(const glm::mat4 sphere_model_matrix, const glm::mat4& car_model_matrix, CarState& car, glm::vec3 largestMtv, MovingSphereState& sphere)
@@ -83,17 +83,124 @@ void CarMovingSphere(const glm::mat4 sphere_model_matrix, const glm::mat4& car_m
 
 void SphereSphereBounce(const glm::mat4& moving_model, float moving_scale, int moving_id, const glm::mat4& static_model, float static_scale, int static_id, MovingSphereState& movingSphere, const Sphere& localHull)
 {
-    auto pos_static = glm::vec3(-1.0f, 0.0f, 0.0f);
+    // --- 1. Get world centers ---
+    glm::vec3 Cmoving = glm::vec3(moving_model[3]);
+    glm::vec3 Cstatic = glm::vec3(static_model[3]);
 
-    auto collision_point = movingSphere.position + (moving_scale/(moving_scale-static_scale))*(pos_static - movingSphere.position);
+    // --- 2. Compute radii ---
+    float Rmoving = moving_scale * 0.5f;
+    float Rstatic = static_scale * 0.5f;
 
-    auto p_normal = glm::normalize(collision_point-pos_static);
+    // --- 3. Horizontal only ---
+    Cmoving.y = 0;
+    Cstatic.y = 0;
 
-    auto angle = glm::dot(p_normal, movingSphere.direction);
+    // --- 4. Compute vector between centers ---
+    glm::vec3 diff = Cmoving - Cstatic;
+    float dist = glm::length(diff);
 
-    movingSphere.direction[0] = movingSphere.direction[0] - sin(angle);
-    movingSphere.direction[2] = movingSphere.direction[2] - cos(angle);
+    if (dist < 0.0001f)
+        return;  // avoid freak cases
 
-    movingSphere.direction = glm::normalize(movingSphere.direction);
+    glm::vec3 normal = diff / dist;  // from static toward moving
 
+    // --- 5. Push moving sphere out (MTV) ---
+    float penetration = (Rmoving + Rstatic) - dist;
+    if (penetration > 0)
+        movingSphere.position += normal * penetration;
+
+    // --- 6. Reflect velocity ---
+    glm::vec3 vel = movingSphere.direction * movingSphere.speed;
+
+    float dotN = glm::dot(vel, normal);
+    if (dotN < 0) // sphere is moving into static sphere
+    {
+        glm::vec3 reflected = vel - 2.0f * dotN * normal;
+
+        // damping
+        reflected *= 0.8f;
+
+        movingSphere.speed = glm::length(reflected);
+        if (movingSphere.speed > 0.0001f)
+            movingSphere.direction = glm::normalize(reflected);
+        else
+            movingSphere.direction = glm::vec3(0);
+    }
+}
+
+bool SphereOBBCollision_ForSphere(const OBB& box, const Sphere& sphere, glm::vec3& mtvOut)
+{
+    glm::vec3 d = sphere.center - box.center;
+    glm::vec3 closest = box.center;
+
+    // Find closest point on OBB
+    for (int i = 0; i < 3; ++i)
+    {
+        float dist = glm::dot(d, box.axis[i]);
+        dist = glm::clamp(dist, -box.halfSize[i], box.halfSize[i]);
+        closest += dist * box.axis[i];
+    }
+
+    glm::vec3 toSphere = sphere.center - closest;
+    float dist2 = glm::dot(toSphere, toSphere);
+
+    if (dist2 >= sphere.radius * sphere.radius)
+        return false;  // no collision
+
+    float dist = sqrt(dist2);
+
+    glm::vec3 normal;
+    if (dist < 1e-6f)
+        normal = glm::normalize(sphere.center - box.center);
+    else
+        normal = toSphere / dist;
+
+    // MTV must push sphere OUTWARDS
+    float penetration = sphere.radius - dist;
+    mtvOut = normal * penetration;
+
+    return true;
+}
+
+
+bool SphereBarrierCollision(const glm::mat4& sphere_model_matrix, float sphereScale, const AABB& worldBarrierAABB, MovingSphereState& sphere)
+{
+    float radius = sphereScale * 0.9f;
+
+    Sphere worldSphere;
+    worldSphere.center = sphere.position;
+    worldSphere.radius = radius;
+
+    OBB box;
+    box.center   = (worldBarrierAABB.min + worldBarrierAABB.max) * 0.5f;
+    box.halfSize = (worldBarrierAABB.max - worldBarrierAABB.min) * 0.5f;
+    box.axis[0] = glm::vec3(1,0,0);
+    box.axis[1] = glm::vec3(0,1,0);
+    box.axis[2] = glm::vec3(0,0,1);
+
+    glm::vec3 mtv;
+    if (!SphereOBBCollision_ForSphere(box, worldSphere, mtv))
+        return false;
+
+    // Fix position
+    sphere.position += mtv;
+
+    // Horizontal only
+    glm::vec3 normal = glm::normalize(glm::vec3(mtv.x, 0, mtv.z));
+
+    glm::vec3 velocity = sphere.direction * sphere.speed;
+
+    float dotN = glm::dot(velocity, normal);
+
+    if (dotN < 0)
+    {
+        glm::vec3 reflected = velocity - 2.0f * dotN * normal;
+        reflected *= 0.7f;
+
+        sphere.speed = glm::length(reflected);
+        sphere.direction = (sphere.speed > 0.001f ? glm::normalize(reflected)
+                                                  : glm::vec3(0));
+    }
+
+    return true;
 }

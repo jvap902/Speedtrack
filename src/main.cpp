@@ -423,6 +423,9 @@ int main(int argc, char* argv[])
                 SphereSphereBounce( sphere_model_matrix2, sphere2UniformScale, SPHERE2, sphere_model_matrix, sphere1UniformScale, SPHERE1, g_Sphere, g_localSphereHull);
             }
         }
+        if (possibleCollisions.count({SPHERE2, BARRIER})){
+            SphereBarrierCollision(sphere_model_matrix2, sphere2UniformScale, g_CollisionBoxes[barrierHullId], g_Sphere);
+        }
 
         // Nota: Se você tiver colisão CAR vs PLANE ou CAR vs WALL, adicione aqui usando TreatCarCollision (adaptando para OBB vs OBB se necessário)
 
