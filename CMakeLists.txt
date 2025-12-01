@@ -21,6 +21,8 @@ set(SOURCES
   src/car.cpp
   src/track.cpp
   src/input.cpp
+  src/moving_objects.cpp
+  include/moving_objects.h
 )
 
 cmake_minimum_required(VERSION 3.5.0)

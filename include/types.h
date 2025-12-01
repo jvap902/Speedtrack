@@ -10,8 +10,9 @@
 
 // Object IDs
 #define CAR    0
-#define SPHERE 1
+#define SPHERE1 1
 #define PLANE  2
+#define SPHERE2 3
 #define BARRIER  4
 #define STRAIGHT 5
 #define RAMP 6
@@ -21,6 +22,9 @@
 const float TRACK_Y = -0.99f;
 const float PIECE_LENGTH = 10.0f;
 const float TURN_RADIUS = 6.366197f;
+
+#define M_PI   3.14159265358979323846
+#define M_PI_2 1.57079632679489661923
 
 // --- Basic Structs ---
 struct SceneObject {
@@ -71,6 +75,13 @@ struct CarState {
     glm::vec3 position;
     float angle;
     float speed;
+};
+
+struct MovingSphereState {
+    glm::vec3 position;
+    float angle;
+    float speed;
+    glm::vec3 direction;
 };
 
 // --- The "God Struct" for Callbacks ---

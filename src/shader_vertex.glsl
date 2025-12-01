@@ -23,7 +23,7 @@ uniform sampler2D TextureImage0; // Textura da esfera
 #define M_PI   3.14159265358979323846
 #define M_PI_2 1.57079632679489661923
 
-#define SPHERE 1
+#define SPHERE1 1
 
 // Atributos de vértice que serão gerados como saída ("out") pelo Vertex Shader.
 // ** Estes serão interpolados pelo rasterizador! ** gerando, assim, valores
@@ -88,7 +88,7 @@ void main()
     sphere_texcoords = vec2(0.0, 0.0);
 
     //Cálculo do Gouraud Shading
-    if(object_id == SPHERE) {
+    if(object_id == SPHERE1) {
         // Obtemos a posição da câmera utilizando a inversa da matriz que define o
         // sistema de coordenadas da câmera.
         vec4 origin = vec4(0.0, 0.0, 0.0, 1.0);

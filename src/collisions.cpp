@@ -377,14 +377,14 @@ bool SphereSphereCollision(const ObjModel& obj1, const ObjModel& obj2, glm::mat4
     glm::vec3 worldCenter = glm::vec3(object1_matrix * glm::vec4(boundingSphere1.center, 1.0f));
     float worldRadius = boundingSphere1.radius * object1_uniformScale;
 
-    Sphere worldSphere = { worldCenter, worldRadius, boundingSphere1.id };
+    Sphere worldSphereObj2 = { worldCenter, worldRadius, boundingSphere1.id };
 
     worldCenter = glm::vec3(object2_matrix * glm::vec4(boundingSphere2.center, 1.0f));
     worldRadius = boundingSphere2.radius * object2_UniformScale;
 
-    Sphere worldCar = { worldCenter, worldRadius, boundingSphere2.id };
+    Sphere worldSphereObj1 = { worldCenter, worldRadius, boundingSphere2.id };
 
-    if (SSCollision(worldCar, worldSphere))
+    if (SSCollision(worldSphereObj1, worldSphereObj2))
     {
         return true;
     }
