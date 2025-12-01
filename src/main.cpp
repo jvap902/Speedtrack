@@ -70,7 +70,7 @@ std::stack<glm::mat4> g_MatrixStack;               // Pilha de matrizes (usada p
 // Cache de Colisão
 Sphere g_localSphereHull;
 std::vector<OBB> g_localCarHulls;
-AABB g_localBarrierHull;
+std::vector<AABB> g_localBarrierHulls;
 
 // Contador de Texturas
 GLuint g_NumLoadedTextures = 0;
@@ -216,7 +216,7 @@ int main(int argc, char* argv[])
     int bbox_id_counter = 0;
 
     // Constrói a pista e popula g_TrackObjects e g_CollisionBoxes
-    BuildTrack(g_TrackObjects, g_VirtualScene, g_CollisionBoxes, bbox_id_counter, cursor);
+    BuildTrack(g_TrackObjects, g_VirtualScene, g_CollisionBoxes, bbox_id_counter, cursor, g_localBarrierHulls);
 
     // Adiciona esferas estáticas à cena
     float sphere1UniformScale = 1.0f;
@@ -224,17 +224,10 @@ int main(int argc, char* argv[])
     g_TrackObjects.push_back(std::make_tuple(sphere_model_matrix, "the_sphere", SPHERE1));
     BuildBBoxArray(g_VirtualScene, g_CollisionBoxes, bbox_id_counter, "the_sphere", sphere_model_matrix, SPHERE1);
 
-    // Adiciona barreira à cena
-    glm::mat4 barrier_model_matrix = Matrix_Translate(4.0f, -1.0f, 0.0f) * Matrix_Scale(1.0f, 1.0f, 1.0f);
-    g_TrackObjects.push_back(std::make_tuple(barrier_model_matrix, "concrete_road_barrier", BARRIER));
-    BuildBBoxArray(g_VirtualScene, g_CollisionBoxes, bbox_id_counter, "concrete_road_barrier", barrier_model_matrix, BARRIER);
-    int barrierHullId = bbox_id_counter-1;
-
     // 4. Inicialização de Física e Colisão
     printf("Building local-space collision hulls...\n");
     g_localSphereHull = BoundingSphere(spheremodel, SPHERE1);
     g_localCarHulls   = BuildCompoundHitbox(carmodel, Matrix_Identity(), CAR);
-    g_localBarrierHull = g_CollisionBoxes[barrierHullId];
     printf("Hulls built.\n");
 
 
@@ -416,7 +409,7 @@ int main(int argc, char* argv[])
             TreatCarSphereCollision(sphere_model_matrix2, sphere2UniformScale, car_model_matrix, {CAR, SPHERE2}, g_Car, last_car_pos, g_localSphereHull, g_localCarHulls, g_Sphere);
         }
         if (possibleCollisions.count({CAR, BARRIER})) {
-            TreatCarBarrierCollision(car_model_matrix, {CAR, BARRIER}, g_Car, last_car_pos, g_localCarHulls, g_localBarrierHull);
+            TreatCarBarrierCollision(car_model_matrix, {CAR, BARRIER}, g_Car, last_car_pos, g_localCarHulls, g_localBarrierHulls);
         }
         if (possibleCollisions.count({SPHERE1, SPHERE2})) {
             if (SphereSphereCollision(spheremodel, spheremodel, sphere_model_matrix, SPHERE1, sphere_model_matrix2, SPHERE2, sphere1UniformScale, sphere2UniformScale)){
@@ -424,7 +417,7 @@ int main(int argc, char* argv[])
             }
         }
         if (possibleCollisions.count({SPHERE2, BARRIER})){
-            SphereBarrierCollision(sphere_model_matrix2, sphere2UniformScale, g_CollisionBoxes[barrierHullId], g_Sphere);
+            SphereBarrierCollision(sphere_model_matrix2, sphere2UniformScale, g_localBarrierHulls, g_Sphere);
         }
 
         // Nota: Se você tiver colisão CAR vs PLANE ou CAR vs WALL, adicione aqui usando TreatCarCollision (adaptando para OBB vs OBB se necessário)

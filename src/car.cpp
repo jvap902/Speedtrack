@@ -123,10 +123,9 @@ void TreatCarSphereCollision(const glm::mat4& sphere_model_matrix, float sphereU
     }
 }
 
-void TreatCarBarrierCollision(const glm::mat4& car_model_matrix, const std::pair<int,int>& collision, CarState& car, const glm::vec3& last_pos, const std::vector<OBB>& localCarHulls, const AABB& localBarrierHull)
+void TreatCarBarrierCollision(const glm::mat4& car_model_matrix, const std::pair<int,int>& collision, CarState& car, const glm::vec3& last_pos, const std::vector<OBB>& localCarHulls, const std::vector<AABB>& localBarrierHulls)
 {
-        if (collision.second == BARRIER)
-    {
+    for (auto localBarrierHull : localBarrierHulls){
         glm::vec3 largestMtv(0.0f);
         bool hasCollided = false;
 

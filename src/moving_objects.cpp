@@ -163,44 +163,48 @@ bool SphereOBBCollision_ForSphere(const OBB& box, const Sphere& sphere, glm::vec
 }
 
 
-bool SphereBarrierCollision(const glm::mat4& sphere_model_matrix, float sphereScale, const AABB& worldBarrierAABB, MovingSphereState& sphere)
+bool SphereBarrierCollision(const glm::mat4& sphere_model_matrix, float sphereScale, const std::vector<AABB> &localBarrierHulls, MovingSphereState& sphere)
 {
-    float radius = sphereScale * 0.9f;
+    for (auto worldBarrierAABB : localBarrierHulls){
+        float radius = sphereScale * 0.9f;
 
-    Sphere worldSphere;
-    worldSphere.center = sphere.position;
-    worldSphere.radius = radius;
+        Sphere worldSphere;
+        worldSphere.center = sphere.position;
+        worldSphere.radius = radius;
 
-    OBB box;
-    box.center   = (worldBarrierAABB.min + worldBarrierAABB.max) * 0.5f;
-    box.halfSize = (worldBarrierAABB.max - worldBarrierAABB.min) * 0.5f;
-    box.axis[0] = glm::vec3(1,0,0);
-    box.axis[1] = glm::vec3(0,1,0);
-    box.axis[2] = glm::vec3(0,0,1);
+        OBB box;
+        box.center   = (worldBarrierAABB.min + worldBarrierAABB.max) * 0.5f;
+        box.halfSize = (worldBarrierAABB.max - worldBarrierAABB.min) * 0.5f;
+        box.axis[0] = glm::vec3(1,0,0);
+        box.axis[1] = glm::vec3(0,1,0);
+        box.axis[2] = glm::vec3(0,0,1);
 
-    glm::vec3 mtv;
-    if (!SphereOBBCollision_ForSphere(box, worldSphere, mtv))
-        return false;
+        glm::vec3 mtv;
+        if (!SphereOBBCollision_ForSphere(box, worldSphere, mtv))
+            continue;
 
-    // Fix position
-    sphere.position += mtv;
+        // Fix position
+        sphere.position += mtv;
 
-    // Horizontal only
-    glm::vec3 normal = glm::normalize(glm::vec3(mtv.x, 0, mtv.z));
+        // Horizontal only
+        glm::vec3 normal = glm::normalize(glm::vec3(mtv.x, 0, mtv.z));
 
-    glm::vec3 velocity = sphere.direction * sphere.speed;
+        glm::vec3 velocity = sphere.direction * sphere.speed;
 
-    float dotN = glm::dot(velocity, normal);
+        float dotN = glm::dot(velocity, normal);
 
-    if (dotN < 0)
-    {
-        glm::vec3 reflected = velocity - 2.0f * dotN * normal;
-        reflected *= 0.7f;
+        if (dotN < 0)
+        {
+            glm::vec3 reflected = velocity - 2.0f * dotN * normal;
+            reflected *= 0.7f;
 
-        sphere.speed = glm::length(reflected);
-        sphere.direction = (sphere.speed > 0.001f ? glm::normalize(reflected)
-                                                  : glm::vec3(0));
+            sphere.speed = glm::length(reflected);
+            sphere.direction = (sphere.speed > 0.001f ? glm::normalize(reflected)
+                                                    : glm::vec3(0));
+        }
+
+        return true;
     }
 
-    return true;
+    return false;
 }
