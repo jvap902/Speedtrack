@@ -18,8 +18,8 @@
 
 ## Uso de IA para desenvolvimento do trabalho
   Ambos membros da dupla utilizaram IAs, principalmente ChatGPT e Gemini, para o desenvolvimento do trabalho, de diversas maneiras e em múltiplos locais no código, como:
-    - Debug: útil quando se trabalhou com cálculos de colisão, atualização do CMake ou quando se identificava um erro mas não se sabia a exata razão.
-    - Geração de código: utilizado quando se tinha uma ideia teórica de como fazer algo, mas não se tinha certeza sobre a maneira de implementar.
+   - Debug: útil quando se trabalhou com cálculos de colisão, atualização do CMake ou quando se identificava um erro mas não se sabia a exata razão.
+   - Geração de código: utilizado quando se tinha uma ideia teórica de como fazer algo, mas não se tinha certeza sobre a maneira de implementar.
 
   **Quanto a utilidade:** As LLMs utilizadas foram muito úteis sem dúvida, contudo às vezes elas mais atrapalhavam do que ajudavam, houveram situações em que debugar o código gerado acabou sendo mais trabalhoso do que fazer ele do zero. O momento em que as IAs menos conseguiam ajudar era quando se tinha alguma anomalia visual, por mais que pudessem apontar inconsistências no código, não eram capazes de ver o que estava acontecendo e ajudar a consertar o código de forma efetiva.
 
