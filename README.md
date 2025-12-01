@@ -2,19 +2,19 @@
 
 ## Contribuições de cada membro
 **João Vitor Angelo Pereira**
-  Cálculos de colisão
-  Malhas poligonais complexas
-  Animações baseadas em tempo
+  - Cálculos de colisão
+  - Malhas poligonais complexas
+  - Animações baseadas em tempo
 
 **Lucas Pereira Vargas**
-  Iluminação
-  Curvas de Bézier
-  Refatoração do código (necessário em determinado ponto)
+  - Iluminação
+  - Curvas de Bézier
+  - Refatoração do código (necessário em determinado ponto)
   
 **Ambos**
-  Mapeamento de texturas
-  Instâncias de objetos
-  Câmeras livre e look-at
+  - Mapeamento de texturas
+  - Instâncias de objetos
+  - Câmeras livre e look-at
 
 ## Uso de IA para desenvolvimento do trabalho
   Ambos membros da dupla utilizaram IAs, principalmente ChatGPT e Gemini, para o desenvolvimento do trabalho, de diversas maneiras e em múltiplos locais no código, como:
