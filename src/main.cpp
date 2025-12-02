@@ -20,6 +20,7 @@
 // Headers das bibliotecas externas
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+#include <GLFW/glfw3native.h>
 #include <glm/mat4x4.hpp>
 #include <glm/vec4.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -56,10 +57,10 @@ void TextRendering_ShowFramesPerSecond(GLFWwindow* window);
 glm::vec3 calculateBezierPoint(float t, const glm::vec3& p0, const glm::vec3& p1, const glm::vec3& p2, const glm::vec3& p3);
 
 //Pontos que definem a curva de Bézier
-glm::vec3 P0 = {0.0f, 0.0f, 3.0f};
-glm::vec3 P1 = {0.0f, -0.0f, 10.0f};
-glm::vec3 P2 = {10.0f, -0.0f, 0.0f};
-glm::vec3 P3 = {-10.0f, -0.0f, 15.0f};
+glm::vec3 P0 = {-4.0f, 0.0f, 10.0f};
+glm::vec3 P1 = {0.0f, 0.0f, 12.5f};
+glm::vec3 P2 = {0.0f, 0.0f, 8.5f};
+glm::vec3 P3 = {4.0f, -0.0f, 10.0f};
 
 // --- VARIÁVEIS GLOBAIS DE ESTADO (State Management) ---
 // Estas substituem as variáveis soltas antigas para a lógica do jogo.
@@ -176,6 +177,7 @@ int main(int argc, char* argv[])
     LoadTextureImage("../../models/concrete_road_barrier/textures/concrete_road_barrier_nor_gl_4k.jpg", g_NumLoadedTextures); // 6
     LoadTextureImage("../../models/sphere_textures/beige_wall_001_diff_4k.jpg", g_NumLoadedTextures); // 7
     LoadTextureImage("../../models/sphere_textures/beige_wall_001_disp_4k.png", g_NumLoadedTextures); // 8
+    LoadTextureImage("../../data/textura_grama.jpg", g_NumLoadedTextures); // 9
 
     // Carrega Modelos
     // Esfera
@@ -225,11 +227,16 @@ int main(int argc, char* argv[])
     // Constrói a pista e popula g_TrackObjects e g_CollisionBoxes
     BuildTrack(g_TrackObjects, g_VirtualScene, g_CollisionBoxes, bbox_id_counter, cursor, g_localBarrierHulls);
 
-    // Adiciona esferas estáticas à cena
+    // Adiciona esfera estática à cena
     float sphere1UniformScale = 1.0f;
-    glm::mat4 sphere_model_matrix = Matrix_Translate(-1.0f, 0.0f, 0.0f) * Matrix_Scale(sphere1UniformScale, sphere1UniformScale, sphere1UniformScale);
+    glm::mat4 sphere_model_matrix = Matrix_Translate(0.0f, 0.0f, -10.0f) * Matrix_Scale(sphere1UniformScale, sphere1UniformScale, sphere1UniformScale);
     g_TrackObjects.push_back(std::make_tuple(sphere_model_matrix, "the_sphere", SPHERE1));
     BuildBBoxArray(g_VirtualScene, g_CollisionBoxes, bbox_id_counter, "the_sphere", sphere_model_matrix, SPHERE1);
+
+    //Adiciona plano de superfície (grama)
+    glm::mat4 plane_model_matrix = Matrix_Translate(0.0f, -1.1f, 0.0f) * Matrix_Scale(1000.0f, sphere1UniformScale, 1000.0f);
+    g_TrackObjects.push_back(std::make_tuple(plane_model_matrix, "the_plane", PLANE));
+    BuildBBoxArray(g_VirtualScene, g_CollisionBoxes, bbox_id_counter, "the_plane", plane_model_matrix, PLANE);
 
     // 4. Inicialização de Física e Colisão
     printf("Building local-space collision hulls...\n");
