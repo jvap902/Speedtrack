@@ -28,6 +28,7 @@ uniform mat4 projection;
 #define STRAIGHT 5
 #define RAMP 6
 #define TURN 7
+#define SPHEREBEZIER 8
 
 uniform int object_id;
 
@@ -45,6 +46,7 @@ uniform sampler2D TextureImage5;
 uniform sampler2D TextureImage6;
 uniform sampler2D TextureImage7;
 uniform sampler2D TextureImage8;
+uniform sampler2D TextureImage9;
 
 // Novo atributo in para Gouraud Shading da esfera
 in vec4 cor_v;
@@ -102,7 +104,7 @@ void main()
     float q; // Expoente especular para o modelo de iluminação de Phong
 
 
-    if ( object_id == PLANE || object_id == STRAIGHT || object_id == TURN)
+    if (object_id == STRAIGHT || object_id == TURN)
     {
 
         // O plane.obj não tem texcoords. Geramos proceduralmente.
@@ -127,9 +129,18 @@ void main()
         Ks = vec3(0.3, 0.3, 0.3);       // Reflexão especular leve
         q  = 64.0;                      // Brilho moderado
     }
+    else if (object_id == PLANE) {
+        vec2 plane_uv = vec2(position_model.x, position_model.z) * 2000.0;
+        vec3 texColor = texture(TextureImage9, plane_uv).rgb;
+
+        Kd = texColor;                  // Difusa baseada na textura
+        Ka = texColor * 0.3;            // Ambiente mais fraco
+        Ks = vec3(0.1, 0.1, 0.1);       // Asfalto não brilha muito
+        q  = 2.0;                      // Brilho bem suave
+    }
 
     
-    if (object_id == SPHERE1 || object_id == SPHERE2){
+    if (object_id == SPHERE1 || object_id == SPHERE2 || object_id == SPHEREBEZIER){
 
         vec4 bbox_center = (bbox_min + bbox_max) / 2.0;
 
@@ -153,7 +164,7 @@ void main()
         float ao;
         vec3 texColor;
 
-        if (object_id == SPHERE1){
+        if (object_id == SPHERE1 || object_id == SPHEREBEZIER){
 
             Kd0 = texture(TextureImage0, sphereUV).rgb;
             ao = texture(TextureImage1, sphereUV).r;
@@ -177,7 +188,6 @@ void main()
 
         color.rgb = Kd0 * (lambert * ao + 0.1 * ao) + ambient_term;
     }
-
     else if (object_id == BARRIER){
     // --- SAMPLE BARRIER TEXTURES ---
     // main.cpp loads textures as:
@@ -226,7 +236,6 @@ void main()
 
     color.rgb = lambert_diffuse_term + phong_specular_term + ambient_term;
     }
-
     else{
         // Espectro da fonte de iluminação
         vec3 I = vec3(1.0,1.0,1.0); // PREENCH AQUI o espectro da fonte de luz

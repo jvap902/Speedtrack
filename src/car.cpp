@@ -113,6 +113,9 @@ void TreatCarSphereCollision(const glm::mat4& sphere_model_matrix, float sphereU
 
         else {
         // Pushback
+        largestMtv.y = 0.0f;
+
+
         car.position.x += largestMtv.x;
         car.position.y += largestMtv.y;
         car.position.z += largestMtv.z;
@@ -152,6 +155,8 @@ void TreatCarBarrierCollision(const glm::mat4& car_model_matrix, const std::pair
         if (hasCollided)
         {
             // --- PUSH CAR OUT ---
+            largestMtv.y = 0.0f;
+            
             car.position.x += largestMtv.x;
             car.position.y += largestMtv.y;
             car.position.z += largestMtv.z;

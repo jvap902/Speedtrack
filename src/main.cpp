@@ -20,6 +20,7 @@
 // Headers das bibliotecas externas
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+#include <GLFW/glfw3native.h>
 #include <glm/mat4x4.hpp>
 #include <glm/vec4.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -53,6 +54,13 @@ void TextRendering_PrintMatrixVectorProductDivW(GLFWwindow* window, glm::mat4 M,
 // outras informações do programa. Definidas após main().
 
 void TextRendering_ShowFramesPerSecond(GLFWwindow* window);
+glm::vec3 calculateBezierPoint(float t, const glm::vec3& p0, const glm::vec3& p1, const glm::vec3& p2, const glm::vec3& p3);
+
+//Pontos que definem a curva de Bézier
+glm::vec3 P0 = {-4.0f, 0.0f, 10.0f};
+glm::vec3 P1 = {0.0f, 0.0f, 12.5f};
+glm::vec3 P2 = {0.0f, 0.0f, 8.5f};
+glm::vec3 P3 = {4.0f, -0.0f, 10.0f};
 
 // --- VARIÁVEIS GLOBAIS DE ESTADO (State Management) ---
 // Estas substituem as variáveis soltas antigas para a lógica do jogo.
@@ -169,6 +177,7 @@ int main(int argc, char* argv[])
     LoadTextureImage("../../models/concrete_road_barrier/textures/concrete_road_barrier_nor_gl_4k.jpg", g_NumLoadedTextures); // 6
     LoadTextureImage("../../models/sphere_textures/beige_wall_001_diff_4k.jpg", g_NumLoadedTextures); // 7
     LoadTextureImage("../../models/sphere_textures/beige_wall_001_disp_4k.png", g_NumLoadedTextures); // 8
+    LoadTextureImage("../../data/textura_grama.jpg", g_NumLoadedTextures); // 9
 
     // Carrega Modelos
     // Esfera
@@ -218,11 +227,16 @@ int main(int argc, char* argv[])
     // Constrói a pista e popula g_TrackObjects e g_CollisionBoxes
     BuildTrack(g_TrackObjects, g_VirtualScene, g_CollisionBoxes, bbox_id_counter, cursor, g_localBarrierHulls);
 
-    // Adiciona esferas estáticas à cena
+    // Adiciona esfera estática à cena
     float sphere1UniformScale = 1.0f;
-    glm::mat4 sphere_model_matrix = Matrix_Translate(-1.0f, 0.0f, 0.0f) * Matrix_Scale(sphere1UniformScale, sphere1UniformScale, sphere1UniformScale);
+    glm::mat4 sphere_model_matrix = Matrix_Translate(0.0f, 0.0f, -10.0f) * Matrix_Scale(sphere1UniformScale, sphere1UniformScale, sphere1UniformScale);
     g_TrackObjects.push_back(std::make_tuple(sphere_model_matrix, "the_sphere", SPHERE1));
     BuildBBoxArray(g_VirtualScene, g_CollisionBoxes, bbox_id_counter, "the_sphere", sphere_model_matrix, SPHERE1);
+
+    //Adiciona plano de superfície (grama)
+    glm::mat4 plane_model_matrix = Matrix_Translate(0.0f, -1.1f, 0.0f) * Matrix_Scale(1000.0f, sphere1UniformScale, 1000.0f);
+    g_TrackObjects.push_back(std::make_tuple(plane_model_matrix, "the_plane", PLANE));
+    BuildBBoxArray(g_VirtualScene, g_CollisionBoxes, bbox_id_counter, "the_plane", plane_model_matrix, PLANE);
 
     // 4. Inicialização de Física e Colisão
     printf("Building local-space collision hulls...\n");
@@ -397,6 +411,16 @@ int main(int argc, char* argv[])
             * Matrix_Identity();
         BuildBBoxArray(g_VirtualScene, currentFrameBoxes, bbox_id_counter, "the_sphere", sphere_model_matrix2, SPHERE2);
 
+        //Teste Curva de Bézier
+        // E usar 'currentFrameBoxes' para não explodir a memória/CPU
+        float t = std::sin(current_time)*0.5 + 0.5;
+        glm::vec3 spherePosition = calculateBezierPoint(t, P0, P1, P2, P3);
+
+        glm::mat4 sphere_model_matrix3 = Matrix_Translate(spherePosition.x,spherePosition.y, spherePosition.z)
+                                         * Matrix_Scale(1.0f, 1.0f, 1.0f);
+
+        BuildBBoxArray(g_VirtualScene, currentFrameBoxes, bbox_id_counter, "the_sphere", sphere_model_matrix3, SPHEREBEZIER);
+
         // Broadphase
         auto possibleCollisions = SweepAndPrune(currentFrameBoxes);
 
@@ -411,6 +435,10 @@ int main(int argc, char* argv[])
         if (possibleCollisions.count({CAR, BARRIER})) {
             TreatCarBarrierCollision(car_model_matrix, {CAR, BARRIER}, g_Car, last_car_pos, g_localCarHulls, g_localBarrierHulls);
         }
+        if(possibleCollisions.count({CAR, SPHEREBEZIER})) {
+            // Verifica colisão contra a Esfera Bezier
+            TreatCarSphereCollision(sphere_model_matrix3, 1.0f, car_model_matrix, {CAR, SPHEREBEZIER}, g_Car, last_car_pos, g_localSphereHull, g_localCarHulls, g_Sphere);
+        }
         if (possibleCollisions.count({SPHERE1, SPHERE2})) {
             if (SphereSphereCollision(spheremodel, spheremodel, sphere_model_matrix, SPHERE1, sphere_model_matrix2, SPHERE2, sphere1UniformScale, sphere2UniformScale)){
                 SphereSphereBounce( sphere_model_matrix2, sphere2UniformScale, SPHERE2, sphere_model_matrix, sphere1UniformScale, SPHERE1, g_Sphere, g_localSphereHull);
@@ -419,6 +447,24 @@ int main(int argc, char* argv[])
         if (possibleCollisions.count({SPHERE2, BARRIER})){
             SphereBarrierCollision(sphere_model_matrix2, sphere2UniformScale, g_localBarrierHulls, g_Sphere);
         }
+        if (possibleCollisions.count({SPHERE2, SPHEREBEZIER})) {
+            if (SphereSphereCollision(spheremodel, spheremodel, sphere_model_matrix3, SPHEREBEZIER, sphere_model_matrix2, SPHERE2, 0.5f, sphere2UniformScale)){
+                SphereSphereBounce(sphere_model_matrix2, sphere2UniformScale, SPHERE2, sphere_model_matrix3, 1.0f, SPHEREBEZIER, g_Sphere, g_localSphereHull);
+
+                glm::vec3 bezierCenter = glm::vec3(sphere_model_matrix3[3]);
+                glm::vec3 movingCenter = g_Sphere.position; // Updated by Bounce
+
+                glm::vec3 hitDir = glm::normalize(movingCenter - bezierCenter);
+
+                float kickStrength = 8.0f;
+
+                glm::vec3 newVel = (g_Sphere.direction * g_Sphere.speed) + (hitDir * kickStrength);
+                newVel.y = 0.0;
+                g_Sphere.speed = glm::length(newVel);
+                if (g_Sphere.speed > 0.001f)
+                    g_Sphere.direction = glm::normalize(newVel);
+            }
+        }
 
         // Nota: Se você tiver colisão CAR vs PLANE ou CAR vs WALL, adicione aqui usando TreatCarCollision (adaptando para OBB vs OBB se necessário)
 
@@ -426,11 +472,13 @@ int main(int argc, char* argv[])
 
         // Desenha Pista Estática (incluindo esferas)
         DrawAllObjects(g_TrackObjects, g_VirtualScene, g_Shader);
-
+        
         // Desenha esfera que se move
         std::vector<std::tuple<glm::mat4, const char*, int>> MovingSphere;
         MovingSphere.push_back(std::make_tuple(sphere_model_matrix2, "the_sphere", SPHERE2));
+        MovingSphere.push_back(std::make_tuple(sphere_model_matrix3, "the_sphere", SPHEREBEZIER));
         DrawAllObjects(MovingSphere, g_VirtualScene, g_Shader);
+
 
         // Desenha Carro Dinâmico
         // (Poderíamos otimizar não recriando o vetor todo frame, mas é ok para poucas partes)
@@ -504,4 +552,20 @@ void TextRendering_ShowFramesPerSecond(GLFWwindow* window)
     float charwidth = TextRendering_CharWidth(window);
 
     TextRendering_PrintString(window, buffer, 1.0f-(numchars + 1)*charwidth, 1.0f-lineheight, 1.0f);
+}
+
+//Curva de Bézier Cúbica
+glm::vec3 calculateBezierPoint(float t, const glm::vec3& p0, const glm::vec3& p1, const glm::vec3& p2, const glm::vec3& p3) {
+    float u = 1.0f - t;
+    float tt = t * t;
+    float uu = u * u;
+    float uuu = uu * u;
+    float ttt = tt * t;
+
+    glm::vec3 p = p0 * uuu; // (1-t)^3 * P0
+    p = p + (p1 * (3 * uu * t)); // 3*(1-t)^2*t * P1
+    p = p + (p2 * (3 * u * tt)); // 3*(1-t)*t^2 * P2
+    p = p + (p3 * ttt); // t^3 * P3
+
+    return p;
 }
