@@ -26,7 +26,7 @@ uniform mat4 projection;
 #define BARRIER  4
 
 #define STRAIGHT 5
-#define RAMP 6
+#define WALL 6
 #define TURN 7
 #define SPHEREBEZIER 8
 
@@ -47,6 +47,7 @@ uniform sampler2D TextureImage6;
 uniform sampler2D TextureImage7;
 uniform sampler2D TextureImage8;
 uniform sampler2D TextureImage9;
+uniform sampler2D TextureImage10;
 
 // Novo atributo in para Gouraud Shading da esfera
 in vec4 cor_v;
@@ -130,13 +131,23 @@ void main()
         q  = 64.0;                      // Brilho moderado
     }
     else if (object_id == PLANE) {
-        vec2 plane_uv = vec2(position_model.x, position_model.z) * 2000.0;
+        vec2 plane_uv = vec2(position_model.x, position_model.z) * 32.0;
         vec3 texColor = texture(TextureImage9, plane_uv).rgb;
 
         Kd = texColor;                  // Difusa baseada na textura
         Ka = texColor * 0.3;            // Ambiente mais fraco
         Ks = vec3(0.1, 0.1, 0.1);       // Asfalto não brilha muito
         q  = 2.0;                      // Brilho bem suave
+    }
+    else if (object_id == WALL) {
+        vec2 plane_uv = vec2(position_model.x, position_model.z) * 1.0;
+        vec3 texColor = texture(TextureImage10, plane_uv).rgb ;
+
+        // Coeficientes espectrais derivados da textura
+        Kd = texColor;                  // Difusa baseada na textura
+        Ka = texColor * 0.3;            // Ambiente mais fraco
+        Ks = vec3(0.01, 0.01, 0.01);       // Asfalto não brilha muito
+        q  = 2.0;
     }
 
     
@@ -189,10 +200,8 @@ void main()
         color.rgb = Kd0 * (lambert * ao + 0.1 * ao) + ambient_term;
     }
     else if (object_id == BARRIER){
-
-    // Simply output the interpolated color
-    color.rgb = cor_v.rgb;
-    color.a = 1.0;
+        // Simply output the interpolated color
+        color.rgb = cor_v.rgb;
     }
     else{
         // Espectro da fonte de iluminação
