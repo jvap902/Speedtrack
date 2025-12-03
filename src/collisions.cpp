@@ -234,7 +234,7 @@ bool CHitboxSphereCollision(const OBB& box, const Sphere& sphere, glm::vec3& mtv
     return true;
 }
 
-bool AabbObbCollision(const AABB& aabb, const OBB& obb, glm::vec3& mtv)
+bool AabbObbCollision(const AABB& aabb, const OBB& obb)
 {
     // AABB center + half size
     glm::vec3 aCenter = (aabb.min + aabb.max) * 0.5f;
@@ -306,7 +306,6 @@ bool AabbObbCollision(const AABB& aabb, const OBB& obb, glm::vec3& mtv)
         }
     }
 
-    mtv = bestAxis * bestOverlap;
     return true;
 }
 // It now asks for the data it needs instead of guessing global variables

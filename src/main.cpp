@@ -452,15 +452,15 @@ int main(int argc, char* argv[])
             // Verifica colisão contra a Esfera 2
             TreatCarSphereCollision(sphere_model_matrix2, sphere2UniformScale, car_model_matrix, {CAR, SPHERE2}, g_Car, last_car_pos, g_localSphereHull, g_localCarHulls, g_Sphere);
         }
-        if (possibleCollisions.count({CAR, BARRIER})) {
-            TreatCarBarrierCollision(car_model_matrix, {CAR, BARRIER}, g_Car, last_car_pos, g_localCarHulls, g_localBarrierHulls);
-        }
         if(possibleCollisions.count({CAR, SPHEREBEZIER})) {
             // Verifica colisão contra a Esfera Bezier
             TreatCarSphereCollision(sphere_model_matrix3, 1.0f, car_model_matrix, {CAR, SPHEREBEZIER}, g_Car, last_car_pos, g_localSphereHull, g_localCarHulls, g_Sphere);
         }
+        if (possibleCollisions.count({CAR, BARRIER})) {
+            TreatCarBarrierCollision(car_model_matrix, g_Car, last_car_pos, g_localCarHulls, g_localBarrierHulls);
+        }
         if (possibleCollisions.count({CAR, WALL})) {
-            TreatCarWallCollision(car_model_matrix, g_Car, g_localCarHulls, wall_bboxes);
+            TreatCarBarrierCollision(car_model_matrix, g_Car, last_car_pos, g_localCarHulls, wall_bboxes);
         }
         if (possibleCollisions.count({SPHERE1, SPHERE2})) {
             if (SphereSphereCollision(spheremodel, spheremodel, sphere_model_matrix, SPHERE1, sphere_model_matrix2, SPHERE2, sphere1UniformScale, sphere2UniformScale)){
