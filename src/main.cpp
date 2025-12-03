@@ -68,6 +68,7 @@ GameState     g_State;
 CarState      g_Car;
 ShaderProgram g_Shader;
 MovingSphereState g_Sphere;
+std::vector<glm::mat4> g_wallMatrices;
 
 // Estruturas de Dados da Cena
 std::map<std::string, SceneObject> g_VirtualScene; // Geometria visual
@@ -218,9 +219,9 @@ int main(int argc, char* argv[])
     ComputeNormals(&barriermodel);
     BuildTrianglesAndAddToVirtualScene(g_VirtualScene, &barriermodel);
 
-    ObjModel retangulo("../../models/pista/retangulo.obj");
-    ComputeNormals(&retangulo);
-    BuildTrianglesAndAddToVirtualScene(g_VirtualScene, &retangulo);
+    ObjModel wallmodel("../../models/pista/retangulo.obj");
+    ComputeNormals(&wallmodel);
+    BuildTrianglesAndAddToVirtualScene(g_VirtualScene, &wallmodel);
 
     // 3. Inicialização da Pista (Level Design)
     TrackCursor cursor;
@@ -229,7 +230,9 @@ int main(int argc, char* argv[])
     int bbox_id_counter = 0;
 
     // Constrói a pista e popula g_TrackObjects e g_CollisionBoxes
-    BuildTrack(g_TrackObjects, g_VirtualScene, g_CollisionBoxes, bbox_id_counter, cursor, g_localBarrierHulls);
+    BuildTrack(g_TrackObjects, g_VirtualScene, g_CollisionBoxes, bbox_id_counter, cursor, g_localBarrierHulls, g_wallMatrices);
+
+    std::vector<AABB> wall_bboxes = g_CollisionBoxes;
 
     // Adiciona esfera estática à cena
     float sphere1UniformScale = 1.0f;
@@ -471,6 +474,9 @@ int main(int argc, char* argv[])
                 if (g_Sphere.speed > 0.001f)
                     g_Sphere.direction = glm::normalize(newVel);
             }
+        }
+        if (possibleCollisions.count({CAR, WALL})) {
+            TreatCarWallCollision(car_model_matrix, g_Car, g_localCarHulls, wall_bboxes);
         }
 
         // Nota: Se você tiver colisão CAR vs PLANE ou CAR vs WALL, adicione aqui usando TreatCarCollision (adaptando para OBB vs OBB se necessário)

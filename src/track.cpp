@@ -33,9 +33,6 @@ void AddStraight(std::vector<std::tuple<glm::mat4, const char*, int>>& objects,
     // Add to visual list
     objects.push_back(std::make_tuple(model, "the_reta", STRAIGHT));
 
-    // Add to collision list
-    BuildBBoxArray(scene, boxes, bboxId, "the_reta", model, STRAIGHT);
-
     // Barreiras
     float radPiece = glm::radians(cursor.angleY);
 
@@ -50,13 +47,17 @@ void AddStraight(std::vector<std::tuple<glm::mat4, const char*, int>>& objects,
     if(barrier)
         BuildBarrier(barrierDraw, barrierAngle, objects, scene, boxes, bboxId, barrierHulls);
 
+    auto barrier_matrix = model * Matrix_Translate(6.0f, 0.5f, 0.0f);
+        
     // Barreira lateral 1
-    objects.push_back(std::make_tuple(model * Matrix_Translate(6.0f, 0.5f, 0.0f), "the_retangulo", RAMP));
-    BuildBBoxArray(scene, boxes, bboxId, "the_retangulo", model, RAMP);
+    objects.push_back(std::make_tuple(barrier_matrix, "the_retangulo", WALL));
+    BuildBBoxArray(scene, boxes, bboxId, "the_retangulo", barrier_matrix, WALL);
+            
+    barrier_matrix = model * Matrix_Translate(-6.0f, 0.5f, 0.0f);
 
     // Barreira lateral 2
-    objects.push_back(std::make_tuple(model * Matrix_Translate(-6.0f, 0.5f, 0.0f), "the_retangulo", RAMP));
-    BuildBBoxArray(scene, boxes, bboxId, "the_retangulo", model, RAMP);
+    objects.push_back(std::make_tuple(barrier_matrix, "the_retangulo", WALL));
+    BuildBBoxArray(scene, boxes, bboxId, "the_retangulo", barrier_matrix, WALL);
 
     // Update Cursor to the END of the piece
     cursor.position += (forward * PIECE_LENGTH);
@@ -80,7 +81,6 @@ void AddTurnLeft(std::vector<std::tuple<glm::mat4, const char*, int>>& objects,
 
     // Add to list
     objects.push_back(std::make_tuple(model, "the_turn", TURN));
-    BuildBBoxArray(scene, boxes, bboxId, "the_turn", model, TURN);
 
     // --- UPDATE CURSOR LOGIC ---
     float R = TURN_RADIUS;
@@ -131,7 +131,8 @@ void BuildTrack(std::vector<std::tuple<glm::mat4, const char*, int>>& objects,
                 std::vector<AABB>& boxes,
                 int& bboxId,
                 TrackCursor& cursor,
-                std::vector<AABB>& barrierHulls) {
+                std::vector<AABB>& barrierHulls,
+                std::vector<glm::mat4>& wall_matrices) {
 
     printf("Building Track...\n");
 

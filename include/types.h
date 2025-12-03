@@ -15,7 +15,7 @@
 #define SPHERE2 3
 #define BARRIER  4
 #define STRAIGHT 5
-#define RAMP 6
+#define WALL 6
 #define TURN 7
 #define SPHEREBEZIER 8
 

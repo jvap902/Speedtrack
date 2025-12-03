@@ -30,7 +30,8 @@ void BuildTrack(std::vector<std::tuple<glm::mat4, const char*, int>>& objects,
                 std::vector<AABB>& boxes,
                 int& bboxId,
                 TrackCursor& cursor,
-                std::vector<AABB>& barrierHulls);
+                std::vector<AABB>& barrierHulls,
+                std::vector<glm::mat4>& wall_matrices);
 
 void BuildBarrier(glm::vec3 position, float rotate, 
     std::vector<std::tuple<glm::mat4, const char*, int>>& g_TrackObjects,

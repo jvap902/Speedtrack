@@ -180,3 +180,62 @@ void TreatCarBarrierCollision(const glm::mat4& car_model_matrix, const std::pair
         }
     }
 }
+
+
+void TreatCarWallCollision(const glm::mat4& car_model_matrix, CarState& car, const std::vector<OBB>& localCarHulls, std::vector<AABB>& wall_bboxes)
+{
+    bool hasCollided = false;
+    glm::vec3 largestMtv(0.0f);
+    glm::vec3 carForward;
+
+    for (auto wall_bbox : wall_bboxes){
+
+        // Car forward vector (Option A)
+        carForward = glm::normalize(glm::vec3(car_model_matrix * glm::vec4(0,0,-1,0)));
+
+        // Test all OBB hitboxes of car
+        for (const auto& localBox : localCarHulls)
+        {
+            OBB worldBox = TransformOBB(localBox, car_model_matrix);
+
+            glm::vec3 mtv;
+            if (AabbObbCollision(wall_bbox, worldBox, mtv))
+            {
+                hasCollided = true;
+                if (glm::length(mtv) > glm::length(largestMtv))
+                    largestMtv = mtv;
+            }
+        }
+
+        if (hasCollided)
+            break;
+
+    }
+
+    if (hasCollided)
+    {
+        // --- PUSH CAR OUT ---
+        largestMtv.y = 0.0f;
+        
+        car.position.x += largestMtv.x;
+        car.position.y += largestMtv.y;
+        car.position.z += largestMtv.z;
+
+        // --- REALISTIC SLIDING RESPONSE ---
+
+        // Remove the component of velocity that goes into the wall
+        float normalPush = glm::dot(glm::normalize(largestMtv), carForward);
+
+        // If the car is pushing into the barrier
+        if (normalPush < 0.0f)
+        {
+            // Remove forward velocity into the wall (sliding effect)
+            car.speed *= 0.2f;     // keep only 20% -> slides along the wall
+        }
+        else
+        {
+            // Stop velocity
+            car.speed = -car.speed * 0.4f;
+        }
+    }
+}
