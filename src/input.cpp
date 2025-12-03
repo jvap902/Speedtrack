@@ -184,7 +184,7 @@ void TimeControl(GLFWwindow* window, float delta){
 
     snprintf(buffer, 20, "%.2f", state->time);
 
-    TextRendering_PrintString(window, buffer, 0.0f, 1.0f-(lineheight*3.0f), 3.0f);    
+    TextRendering_PrintString(window, buffer, -charwidth, 1.0f-(lineheight*3.0f), 3.0f);    
 }
 
 void Reset(GLFWwindow* window, CarState& Car, MovingSphereState& Sphere, DefaultPositions& DefPos)

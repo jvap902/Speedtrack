@@ -136,9 +136,9 @@ void main()
         vec3 texColor = texture(TextureImage9, plane_uv).rgb;
 
         Kd = texColor;                  // Difusa baseada na textura
-        Ka = texColor * 0.3;            // Ambiente mais fraco
-        Ks = vec3(0.1, 0.1, 0.1);       // Asfalto não brilha muito
-        q  = 2.0;                      // Brilho bem suave
+        Ka = texColor * 0.0;            // Ambiente mais fraco
+        Ks = vec3(0.0, 0.0, 0.0);
+        q  = 1.0;                      // Brilho bem suave
     }
     else if (object_id == WALL) {
         vec2 plane_uv = vec2(position_model.x, position_model.z) * 1.0;
