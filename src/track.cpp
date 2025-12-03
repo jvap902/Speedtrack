@@ -105,6 +105,26 @@ void AddTurnLeft(std::vector<std::tuple<glm::mat4, const char*, int>>& objects,
     if(barrier)
         BuildBarrier(barrierDraw, barrierAngle, objects, scene, boxes, bboxId, barrierHulls);
 
+    auto barrier_matrix = model * Matrix_Translate(6.0f, 0.5f, 0.0f);
+
+    // Barreira lateral 1
+    objects.push_back(std::make_tuple(barrier_matrix, "the_retangulo", WALL));
+    BuildBBoxArray(scene, boxes, bboxId, "the_retangulo", barrier_matrix, WALL);
+    // Barreira lateral 2
+    barrier_matrix = model  * Matrix_Translate(6.0f, 0.5f, -PIECE_LENGTH + 1.51f)
+                            * Matrix_Scale(1.0f, 1.0f, 0.695f)
+                            * Matrix_Identity();
+    objects.push_back(std::make_tuple(barrier_matrix, "the_retangulo", WALL));
+    BuildBBoxArray(scene, boxes, bboxId, "the_retangulo", barrier_matrix, WALL);
+
+    //Barreira lateral 3
+    barrier_matrix = model  * Matrix_Translate(0.0f, 0.5f, (-TURN_RADIUS*2.0 + 0.36))
+                            * Matrix_Rotate_Y(glm::radians(90.0f))
+                            * Matrix_Scale(1.0f, 1.0f, 1.27f)
+                            * Matrix_Identity();
+    objects.push_back(std::make_tuple(barrier_matrix, "the_retangulo", WALL));
+    BuildBBoxArray(scene, boxes, bboxId, "the_retangulo", barrier_matrix, WALL);
+
     // Rotate cursor 90 degrees LEFT for the next piece
     cursor.angleY -= 90.0f;
 }
