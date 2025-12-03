@@ -174,7 +174,7 @@ int main(int argc, char* argv[])
     LoadTextureImage("../../models/Jeep_Renegade_2016/Jeep_Renegade_2016/car_jeep_ren.jpg", g_NumLoadedTextures); // 3
     LoadTextureImage("../../models/concrete_road_barrier/textures/concrete_road_barrier_arm_4k.jpg", g_NumLoadedTextures); // 4
     LoadTextureImage("../../models/concrete_road_barrier/textures/concrete_road_barrier_diff_4k.jpg", g_NumLoadedTextures); // 5
-    LoadTextureImage("../../models/concrete_road_barrier/textures/concrete_road_barrier_nor_gl_4k.jpg", g_NumLoadedTextures); // 6
+    LoadTextureImage("../../models/concrete_road_barrier/textures/concrete_road_barrier_nor_gl_4k.png", g_NumLoadedTextures); // 6
     LoadTextureImage("../../models/sphere_textures/beige_wall_001_diff_4k.jpg", g_NumLoadedTextures); // 7
     LoadTextureImage("../../models/sphere_textures/beige_wall_001_disp_4k.png", g_NumLoadedTextures); // 8
     LoadTextureImage("../../data/textura_grama.jpg", g_NumLoadedTextures); // 9
