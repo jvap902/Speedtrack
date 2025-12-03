@@ -25,6 +25,12 @@ void AddTurnLeft(std::vector<std::tuple<glm::mat4, const char*, int>>& objects,
                  std::vector<AABB>& barrierHulls,
                  bool barrier=false);
 
+void AddFinishLine(std::vector<std::tuple<glm::mat4, const char*, int>>& objects,
+                 const std::map<std::string, SceneObject>& scene,
+                 std::vector<AABB>& boxes,
+                 int& bboxId,
+                 TrackCursor& cursor);
+
 void BuildTrack(std::vector<std::tuple<glm::mat4, const char*, int>>& objects,
                 const std::map<std::string, SceneObject>& scene,
                 std::vector<AABB>& boxes,

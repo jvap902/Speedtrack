@@ -18,6 +18,7 @@
 #define WALL 6
 #define TURN 7
 #define SPHEREBEZIER 8
+#define FINISH_LINE 9
 
 // Constants
 const float TRACK_Y = -0.99f;
