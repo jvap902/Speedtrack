@@ -50,6 +50,14 @@ void AddStraight(std::vector<std::tuple<glm::mat4, const char*, int>>& objects,
     if(barrier)
         BuildBarrier(barrierDraw, barrierAngle, objects, scene, boxes, bboxId, barrierHulls);
 
+    // Barreira lateral 1
+    objects.push_back(std::make_tuple(model * Matrix_Translate(6.0f, 0.5f, 0.0f), "the_retangulo", RAMP));
+    BuildBBoxArray(scene, boxes, bboxId, "the_retangulo", model, RAMP);
+
+    // Barreira lateral 2
+    objects.push_back(std::make_tuple(model * Matrix_Translate(-6.0f, 0.5f, 0.0f), "the_retangulo", RAMP));
+    BuildBBoxArray(scene, boxes, bboxId, "the_retangulo", model, RAMP);
+
     // Update Cursor to the END of the piece
     cursor.position += (forward * PIECE_LENGTH);
 }

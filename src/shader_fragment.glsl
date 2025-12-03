@@ -116,7 +116,7 @@ void main()
         // Coeficientes espectrais derivados da textura
         Kd = texColor;                  // Difusa baseada na textura
         Ka = texColor * 0.3;            // Ambiente mais fraco
-        Ks = vec3(0.1, 0.1, 0.1);       // Asfalto não brilha muito
+        Ks = vec3(0.01, 0.01, 0.01);       // Asfalto não brilha muito
         q  = 2.0;                      // Brilho bem suave
     }
     else if ( object_id == CAR )

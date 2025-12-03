@@ -218,6 +218,10 @@ int main(int argc, char* argv[])
     ComputeNormals(&barriermodel);
     BuildTrianglesAndAddToVirtualScene(g_VirtualScene, &barriermodel);
 
+    ObjModel retangulo("../../models/pista/retangulo.obj");
+    ComputeNormals(&retangulo);
+    BuildTrianglesAndAddToVirtualScene(g_VirtualScene, &retangulo);
+
     // 3. Inicialização da Pista (Level Design)
     TrackCursor cursor;
     cursor.position = glm::vec3(0.0f, TRACK_Y, 5.0f);
