@@ -318,6 +318,7 @@ int main(int argc, char* argv[])
 
         // Guarda posição anterior para resolução de colisão
         glm::vec3 last_car_pos = g_Car.position;
+        float last_car_angle = g_Car.angle;
         glm::vec3 last_sphere_pos = g_Sphere.position;
 
         if(g_State.input.run_time) CarControl(g_Car, g_State.input, deltaTime); //carro só mexe se tempo estiver contando
@@ -457,10 +458,10 @@ int main(int argc, char* argv[])
             TreatCarSphereCollision(sphere_model_matrix3, 1.0f, car_model_matrix, {CAR, SPHEREBEZIER}, g_Car, last_car_pos, g_localSphereHull, g_localCarHulls, g_Sphere);
         }
         if (possibleCollisions.count({CAR, BARRIER})) {
-            TreatCarBarrierCollision(car_model_matrix, g_Car, last_car_pos, g_localCarHulls, g_localBarrierHulls);
+            TreatCarBarrierCollision(car_model_matrix, g_Car, last_car_pos, last_car_angle, g_localCarHulls, g_localBarrierHulls);
         }
         if (possibleCollisions.count({CAR, WALL})) {
-            TreatCarBarrierCollision(car_model_matrix, g_Car, last_car_pos, g_localCarHulls, wall_bboxes);
+            TreatCarBarrierCollision(car_model_matrix, g_Car, last_car_pos, last_car_angle, g_localCarHulls, wall_bboxes);
         }
         if (possibleCollisions.count({SPHERE1, SPHERE2})) {
             if (SphereSphereCollision(spheremodel, spheremodel, sphere_model_matrix, SPHERE1, sphere_model_matrix2, SPHERE2, sphere1UniformScale, sphere2UniformScale)){

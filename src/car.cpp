@@ -126,7 +126,7 @@ void TreatCarSphereCollision(const glm::mat4& sphere_model_matrix, float sphereU
     }
 }
 
-void TreatCarBarrierCollision(const glm::mat4& car_model_matrix, CarState& car, const glm::vec3& last_pos, const std::vector<OBB>& localCarHulls, const std::vector<AABB>& localBarrierHulls)
+void TreatCarBarrierCollision(const glm::mat4& car_model_matrix, CarState& car, const glm::vec3& last_pos, float& last_angle, const std::vector<OBB>& localCarHulls, const std::vector<AABB>& localBarrierHulls)
 {
     for (auto localBarrierHull : localBarrierHulls){
         bool hasCollided = false;
@@ -153,6 +153,7 @@ void TreatCarBarrierCollision(const glm::mat4& car_model_matrix, CarState& car, 
         {
 
             car.position = last_pos;
+            car.angle = last_angle;
 
             car.speed = -car.speed * 0.4f;
         }
