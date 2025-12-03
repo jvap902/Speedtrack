@@ -382,10 +382,13 @@ int main(int argc, char* argv[])
         glm::mat4 view = Matrix_Camera_View(camera_position_c, camera_view_vector, camera_up_vector);
         glm::mat4 projection;
 
+        float nearplane = -0.1f;
+        float farplane = -80.0f;
+
         if (g_State.usePerspective)
-            projection = Matrix_Perspective(3.141592f / 3.0f, g_State.screenRatio, -0.1f, -500.0f);
+            projection = Matrix_Perspective(3.141592f / 3.0f, g_State.screenRatio, nearplane, farplane);
         else
-            projection = Matrix_Orthographic(-10.0f * g_State.screenRatio, 10.0f * g_State.screenRatio, -10.0f, 10.0f, -0.1f, -500.0f);
+            projection = Matrix_Orthographic(-10.0f * g_State.screenRatio, 10.0f * g_State.screenRatio, -10.0f, 10.0f, nearplane, farplane);
 
         glUniformMatrix4fv(g_Shader.view_uniform, 1, GL_FALSE, glm::value_ptr(view));
         glUniformMatrix4fv(g_Shader.projection_uniform, 1, GL_FALSE, glm::value_ptr(projection));

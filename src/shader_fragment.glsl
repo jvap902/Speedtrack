@@ -112,7 +112,7 @@ void main()
         // Multiplicamos por 50.0 para repetir a textura (tiling).
         //vec2 plane_uv = vec2(position_model.x, position_model.z) * 100.0;
         //vec3 texColor = texture(TextureImage2, plane_uv).rgb;
-        vec3 texColor = texture(TextureImage2, (texcoords* 25.0)).rgb ;
+        vec3 texColor = texture(TextureImage2, (texcoords * 5.0f)).rgb ; //diminui o * 25.0 do texcoords, isso diminuia o tamanho das imagens e fazia precisar repetir muitas mais vezes
         // Coeficientes espectrais derivados da textura
         Kd = texColor;                  // Difusa baseada na textura
         Ka = texColor * 0.3;            // Ambiente mais fraco
