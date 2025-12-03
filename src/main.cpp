@@ -180,6 +180,7 @@ int main(int argc, char* argv[])
     LoadTextureImage("../../models/sphere_textures/beige_wall_001_disp_4k.png", g_NumLoadedTextures); // 8
     LoadTextureImage("../../data/textura_grama.jpg", g_NumLoadedTextures); // 9
     LoadTextureImage("../../data/worn_shutter_diff_1k.jpg", g_NumLoadedTextures); // 10
+    LoadTextureImage("../../data/finish_line_dense.png", g_NumLoadedTextures); // 11
 
     // Carrega Modelos
     // Esfera
@@ -237,7 +238,7 @@ int main(int argc, char* argv[])
 
     // Adiciona esfera estática à cena
     float sphere1UniformScale = 1.0f;
-    glm::mat4 sphere_model_matrix = Matrix_Translate(0.0f, 0.0f, -10.0f) * Matrix_Scale(sphere1UniformScale, sphere1UniformScale, sphere1UniformScale);
+    glm::mat4 sphere_model_matrix = Matrix_Translate(-32.0f, 0.0f, -10.0f) * Matrix_Scale(sphere1UniformScale, sphere1UniformScale, sphere1UniformScale);
     g_TrackObjects.push_back(std::make_tuple(sphere_model_matrix, "the_sphere", SPHERE1));
     BuildBBoxArray(g_VirtualScene, g_CollisionBoxes, bbox_id_counter, "the_sphere", sphere_model_matrix, SPHERE1);
 
@@ -266,7 +267,7 @@ int main(int argc, char* argv[])
     defPos.car.angle    = 0.0f;
     defPos.car.speed    = 0.0f;
 
-    defPos.sphere.position = glm::vec3(-30.0f, -0.3f, 0.0f);
+    defPos.sphere.position = glm::vec3(-35.0f, -0.3f, 0.0f);
     defPos.sphere.angle    = 0.0f;
     defPos.sphere.speed    = 0.0f;
     defPos.sphere.direction = glm::vec3(0.0f, 0.0f, 1.0f);

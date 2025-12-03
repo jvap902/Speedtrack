@@ -438,6 +438,8 @@ void LoadShadersFromFiles(ShaderProgram& shader)
 
     glUniform1i(glGetUniformLocation(shader.programId, "TextureImage10"), 10);
 
+    glUniform1i(glGetUniformLocation(shader.programId, "TextureImage11"), 11);
+
     glUseProgram(0);
 }
 

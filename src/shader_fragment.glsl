@@ -19,16 +19,16 @@ uniform mat4 view;
 uniform mat4 projection;
 
 // Identificador que define qual objeto está sendo desenhado no momento
-#define CAR  0
+#define CAR    0
 #define SPHERE1 1
 #define PLANE  2
 #define SPHERE2 3
 #define BARRIER  4
-
 #define STRAIGHT 5
 #define WALL 6
 #define TURN 7
 #define SPHEREBEZIER 8
+#define FINISH_LINE 9
 
 uniform int object_id;
 
@@ -48,6 +48,7 @@ uniform sampler2D TextureImage7;
 uniform sampler2D TextureImage8;
 uniform sampler2D TextureImage9;
 uniform sampler2D TextureImage10;
+uniform sampler2D TextureImage11;
 
 // Novo atributo in para Gouraud Shading da esfera
 in vec4 cor_v;
@@ -144,6 +145,15 @@ void main()
         vec3 texColor = texture(TextureImage10, plane_uv).rgb ;
 
         // Coeficientes espectrais derivados da textura
+        Kd = texColor;                  // Difusa baseada na textura
+        Ka = texColor * 0.3;            // Ambiente mais fraco
+        Ks = vec3(0.01, 0.01, 0.01);       // Asfalto não brilha muito
+        q  = 2.0;
+    }
+    else if (object_id == FINISH_LINE) {
+        vec2 plane_uv = vec2(position_model.x, position_model.z) * 0.250;
+        vec3 texColor = texture(TextureImage11, plane_uv).rgb;
+
         Kd = texColor;                  // Difusa baseada na textura
         Ka = texColor * 0.3;            // Ambiente mais fraco
         Ks = vec3(0.01, 0.01, 0.01);       // Asfalto não brilha muito

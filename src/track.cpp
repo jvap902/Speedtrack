@@ -146,6 +146,44 @@ void BuildBarrier(glm::vec3 position, float rotate,
     barrierHulls.push_back(g_CollisionBoxes[bbox_id_counter-1]);
 }
 
+void AddFinishLine(std::vector<std::tuple<glm::mat4, const char*, int>>& objects,
+                 const std::map<std::string, SceneObject>& scene,
+                 std::vector<AABB>& boxes,
+                 int& bboxId,
+                 TrackCursor& cursor)
+{
+    float rad = glm::radians(cursor.angleY);
+
+    // Forward vector logic remains the same (0 deg = -Z)
+    glm::vec3 forward = glm::vec3(sin(rad), 0.0f, -cos(rad));
+
+    // Move cursor to CENTER of the piece to draw it
+    glm::vec3 drawPos = cursor.position + (forward * (PIECE_LENGTH / 2.0f));
+
+    // This aligns the visual model (Local -Z) with the logical forward vector.
+    glm::mat4 model = Matrix_Translate(drawPos.x, drawPos.y, drawPos.z)
+                    * Matrix_Rotate_Y(-rad)
+                    * Matrix_Identity();
+
+    // Add to visual list
+    objects.push_back(std::make_tuple(model, "the_reta", FINISH_LINE));
+
+    auto barrier_matrix = model * Matrix_Translate(6.0f, 0.5f, 0.0f);
+
+    // Barreira lateral 1
+    objects.push_back(std::make_tuple(barrier_matrix, "the_retangulo", WALL));
+    BuildBBoxArray(scene, boxes, bboxId, "the_retangulo", barrier_matrix, WALL);
+
+    barrier_matrix = model * Matrix_Translate(-6.0f, 0.5f, 0.0f);
+
+    // Barreira lateral 2
+    objects.push_back(std::make_tuple(barrier_matrix, "the_retangulo", WALL));
+    BuildBBoxArray(scene, boxes, bboxId, "the_retangulo", barrier_matrix, WALL);
+
+    // Update Cursor to the END of the piece
+    cursor.position += (forward * PIECE_LENGTH);
+}
+
 void BuildTrack(std::vector<std::tuple<glm::mat4, const char*, int>>& objects,
                 const std::map<std::string, SceneObject>& scene,
                 std::vector<AABB>& boxes,
@@ -158,7 +196,7 @@ void BuildTrack(std::vector<std::tuple<glm::mat4, const char*, int>>& objects,
 
     // START LINE
     AddStraight(objects, scene, boxes, bboxId, cursor, barrierHulls);
-    AddStraight(objects, scene, boxes, bboxId, cursor, barrierHulls);
+    AddFinishLine(objects, scene, boxes, bboxId, cursor);
     AddStraight(objects, scene, boxes, bboxId, cursor, barrierHulls);
 
     // TURN 1
