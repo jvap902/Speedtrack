@@ -179,6 +179,7 @@ int main(int argc, char* argv[])
     LoadTextureImage("../../models/sphere_textures/beige_wall_001_diff_4k.jpg", g_NumLoadedTextures); // 7
     LoadTextureImage("../../models/sphere_textures/beige_wall_001_disp_4k.png", g_NumLoadedTextures); // 8
     LoadTextureImage("../../data/textura_grama.jpg", g_NumLoadedTextures); // 9
+    LoadTextureImage("../../data/worn_shutter_diff_1k.jpg", g_NumLoadedTextures); // 10
 
     // Carrega Modelos
     // Esfera
