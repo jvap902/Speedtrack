@@ -259,16 +259,22 @@ int main(int argc, char* argv[])
     glCullFace(GL_BACK);
     glFrontFace(GL_CCW);
 
+    //posições iniciais dos objetos móveis
+    DefaultPositions defPos;
+    defPos.car.position = glm::vec3(2.0f, -1.0f, 0.0f);
+    defPos.car.angle    = 0.0f;
+    defPos.car.speed    = 0.0f;
+
+    defPos.sphere.position = glm::vec3(-30.0f, -0.3f, 0.0f);
+    defPos.sphere.angle    = 0.0f;
+    defPos.sphere.speed    = 0.0f;
+    defPos.sphere.direction = glm::vec3(0.0f, 0.0f, 1.0f);
+
     // Setup inicial do Carro
-    g_Car.position = glm::vec3(2.0f, -1.0f, 0.0f);
-    g_Car.angle    = 0.0f;
-    g_Car.speed    = 0.0f;
+    g_Car = defPos.car;
 
     // Setup inicial da esfera que se move
-    g_Sphere.position = glm::vec3(-30.0f, -0.3f, 0.0f);
-    g_Sphere.angle    = 0.0f;
-    g_Sphere.speed    = 0.0f;
-    g_Sphere.direction = glm::vec3(0.0f, 0.0f, 1.0f);
+    g_Sphere = defPos.sphere;
 
     // Controle de Tempo
     float prev_time = (float)glfwGetTime();
@@ -313,7 +319,10 @@ int main(int argc, char* argv[])
         glm::vec3 last_car_pos = g_Car.position;
         glm::vec3 last_sphere_pos = g_Sphere.position;
 
-        CarControl(g_Car, g_State.input, deltaTime);
+        if(g_State.input.run_time) CarControl(g_Car, g_State.input, deltaTime); //carro só mexe se tempo estiver contando
+
+        if(g_State.input.reset) Reset(window, g_Car, g_Sphere, defPos);
+
         SphereControl(g_Sphere, deltaTime);
 
         if (g_State.input.camera_mode) // Câmera Livre

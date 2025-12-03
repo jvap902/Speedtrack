@@ -5,6 +5,7 @@
 // Quando o types.h (que tem o glad) for incluído depois, vai dar conflito.
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+#include "types.h"
 
 // Funções callback para comunicação com o sistema operacional e interação do
 // usuário. Veja mais comentários nas definições das mesmas, abaixo.
@@ -15,3 +16,4 @@ void MouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
 void CursorPosCallback(GLFWwindow* window, double xpos, double ypos);
 void ScrollCallback(GLFWwindow* window, double xoffset, double yoffset);
 void TimeControl(GLFWwindow* window, float delta);
+void Reset(GLFWwindow* window, CarState& Car, MovingSphereState& Sphere, DefaultPositions& DefPos);

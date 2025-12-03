@@ -170,7 +170,7 @@ void TreatCarBarrierCollision(const glm::mat4& car_model_matrix, const std::pair
             if (normalPush < 0.0f)
             {
                 // Remove forward velocity into the wall (sliding effect)
-                car.speed *= 0.2f;     // keep only 20% -> slides along the wall
+                car.speed *= 0.01f;     // keep only 20% -> slides along the wall
             }
             else
             {

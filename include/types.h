@@ -69,6 +69,7 @@ struct TrackCursor {
 struct InputState {
     bool w = false, s = false, a = false, d = false;
     bool run_time = false;
+    bool reset = false;
     bool debug_mode = false;
     bool camera_mode = false;
 };
@@ -118,4 +119,10 @@ struct ObjModel
     std::vector<tinyobj::shape_t>     shapes;
     std::vector<tinyobj::material_t>  materials;
     ObjModel(const char* filename, const char* basepath = NULL, bool triangulate = true);
+};
+
+struct DefaultPositions
+{
+    CarState car;
+    MovingSphereState sphere;
 };
