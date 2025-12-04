@@ -23,6 +23,8 @@ set(SOURCES
   src/input.cpp
   src/moving_objects.cpp
   include/moving_objects.h
+  src/sound.cpp
+  include/sound.h
 )
 
 cmake_minimum_required(VERSION 3.5.0)

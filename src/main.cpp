@@ -36,6 +36,10 @@
 #include "track.h"
 #include "moving_objects.h"
 
+//áudio
+#define MINIAUDIO_IMPLEMENTATION
+#include "sound.h"
+
 // Declaração de funções auxiliares para renderizar texto dentro da janela
 
 // OpenGL. Estas funções estão definidas no arquivo "textrendering.cpp".
@@ -110,13 +114,20 @@ float g_ForearmAngleX = 0.0f;
 float g_TorsoPositionX = 0.0f;
 float g_TorsoPositionY = 0.0f;
 
+ma_engine engine;
+ma_sound maxSpeed;
+ma_sound idle;
+ma_sound accelerate;
+ma_sound slowDown;
 
 int main(int argc, char* argv[])
 {
+    soundInit(engine, maxSpeed, idle, accelerate, slowDown);
+
     // 1. Inicialização da Janela e Contexto
     int success = glfwInit();
     if (!success) { fprintf(stderr, "ERROR: glfwInit() failed.\n"); std::exit(EXIT_FAILURE); }
-
+    
     glfwSetErrorCallback(ErrorCallback);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -124,11 +135,11 @@ int main(int argc, char* argv[])
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
     #endif
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
+    
     // Fullscreen ou Janela
     GLFWmonitor* monitor = glfwGetPrimaryMonitor();
     const GLFWvidmode* mode = glfwGetVideoMode(monitor);
-
+    
     // Para janela em modo janela, use:
     // GLFWwindow* window = glfwCreateWindow(1600, 900, "SpeedTrack", NULL, NULL);
     GLFWwindow* window = glfwCreateWindow(mode->width, mode->height, "SpeedTrack", NULL, NULL);
@@ -285,6 +296,8 @@ int main(int argc, char* argv[])
     // --- LOOP PRINCIPAL ---
     while (!glfwWindowShouldClose(window))
     {
+        soundControl(maxSpeed, idle, accelerate, slowDown, g_State.input, g_Car);
+
         // 1. Gestão de Tempo
         float current_time = (float)glfwGetTime();
         deltaTime = current_time - prev_time;
@@ -544,6 +557,8 @@ int main(int argc, char* argv[])
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
+
+    ma_engine_uninit(&engine);
 
     glfwTerminate();
     return 0;
