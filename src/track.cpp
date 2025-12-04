@@ -167,6 +167,7 @@ void AddFinishLine(std::vector<std::tuple<glm::mat4, const char*, int>>& objects
 
     // Add to visual list
     objects.push_back(std::make_tuple(model, "the_reta", FINISH_LINE));
+    BuildBBoxArray(scene, boxes, bboxId, "the_reta", model, FINISH_LINE);
 
     auto barrier_matrix = model * Matrix_Translate(6.0f, 0.5f, 0.0f);
 

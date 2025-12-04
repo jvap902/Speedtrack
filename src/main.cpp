@@ -61,7 +61,7 @@ glm::vec3 P0 = {-4.0f, 0.0f, 10.0f};
 glm::vec3 P1 = {0.0f, 0.0f, 12.5f};
 glm::vec3 P2 = {0.0f, 0.0f, 8.5f};
 glm::vec3 P3 = {4.0f, -0.0f, 10.0f};
-
+glm::vec3 spherePosition;
 // --- VARIÁVEIS GLOBAIS DE ESTADO (State Management) ---
 // Estas substituem as variáveis soltas antigas para a lógica do jogo.
 GameState     g_State;
@@ -69,6 +69,7 @@ CarState      g_Car;
 ShaderProgram g_Shader;
 MovingSphereState g_Sphere;
 std::vector<glm::mat4> g_wallMatrices;
+bool g_RaceFinished = false;
 
 // Estruturas de Dados da Cena
 std::map<std::string, SceneObject> g_VirtualScene; // Geometria visual
@@ -263,7 +264,7 @@ int main(int argc, char* argv[])
 
     //posições iniciais dos objetos móveis
     DefaultPositions defPos;
-    defPos.car.position = glm::vec3(2.0f, -1.0f, 0.0f);
+    defPos.car.position = glm::vec3(0.0f, -1.0f, 0.0f);
     defPos.car.angle    = 0.0f;
     defPos.car.speed    = 0.0f;
 
@@ -289,6 +290,9 @@ int main(int argc, char* argv[])
         float current_time = (float)glfwGetTime();
         deltaTime = current_time - prev_time;
         prev_time = current_time;
+
+        // Safety Clamp for deltaTime to prevent physics explosions
+        if (deltaTime > 0.1f) deltaTime = 0.1f;
 
         // 2. Sincronização com Globais Legado (Para TextRenderer funcionar)
         // O Input atualiza g_State, mas o TextRenderer lê g_CameraTheta, etc.
@@ -322,10 +326,27 @@ int main(int argc, char* argv[])
         float last_car_angle = g_Car.angle;
         glm::vec3 last_sphere_pos = g_Sphere.position;
 
-        if(g_State.input.run_time) CarControl(g_Car, g_State.input, deltaTime); //carro só mexe se tempo estiver contando
 
-        if(g_State.input.reset) Reset(window, g_Car, g_Sphere, defPos);
+        // Create a temporary input state for physics
+        InputState physicsInput = g_State.input;
 
+        if (g_RaceFinished)
+        {
+            // If finished, override controls to FALSE.
+            // CarControl will see "no keys pressed" and apply friction automatically.
+            physicsInput.w = false;
+            physicsInput.s = false;
+            physicsInput.a = false;
+            physicsInput.d = false;
+            physicsInput.run_time = false;
+        }
+
+        if(g_State.input.run_time || g_RaceFinished) CarControl(g_Car, physicsInput, deltaTime); //carro só mexe se tempo estiver contando
+
+        if(g_State.input.reset) {
+            Reset(window, g_Car, g_Sphere, defPos);
+            g_RaceFinished = false;
+        }
         SphereControl(g_Sphere, deltaTime);
 
         if (g_State.input.camera_mode) // Câmera Livre
@@ -346,22 +367,6 @@ int main(int argc, char* argv[])
         }
         else // Câmera do Jogo (Segue o Carro)
         {
-            /* Atualiza Física do Carro
-            CarControl(g_Car, g_State.input, deltaTime);
-
-            float r = g_State.cameraDistance;
-            float y = r * sin(g_State.cameraPhi);
-            float z = r * cos(g_State.cameraPhi) * cos(g_State.cameraTheta);
-            float x = r * cos(g_State.cameraPhi) * sin(g_State.cameraTheta);
-
-            camera_position_c  = glm::vec4(x,y,z,1.0f) + glm::vec4(g_Car.position, 0.0f);
-            camera_lookat_l    = glm::vec4(g_Car.position, 1.0f); // Olha para o carro
-            camera_view_vector = camera_lookat_l - camera_position_c;
-            camera_up_vector   = glm::vec4(0.0f,1.0f,0.0f,0.0f);
-            */
-
-            // --- LÓGICA DE SUAVIZAÇÃO (INTERPOLAÇÃO) ---
-
             // 1. Calcula Onde a Câmera DEVERIA estar (Ideal)
             float cam_distance = 3.5f;
             float cam_height   = 1.5f;
@@ -379,9 +384,24 @@ int main(int argc, char* argv[])
             // 2.0 = Lento/Pesado, 10.0 = Rápido/Grudado.
             // Multiplicamos por deltaTime para ser independente do framerate.
             float lerp_speed = 15.0f;
+            float t = lerp_speed * deltaTime;
+            if (t > 1.0f) t = 1.0f; // Clamp to prevent overshooting
 
-            g_CurrentCameraPos = glm::mix(g_CurrentCameraPos, ideal_pos, lerp_speed * deltaTime);
-            g_CurrentCameraLookAt = glm::mix(g_CurrentCameraLookAt, ideal_lookat, lerp_speed * deltaTime);
+            // Use glm::length instead of distance to avoid potential ambiguity issues
+            if (glm::length(g_CurrentCameraPos - ideal_pos) > 10.0f) {
+                // Reset (Teleport) if too far
+                g_CurrentCameraPos = ideal_pos;
+                g_CurrentCameraLookAt = ideal_lookat;
+            } else {
+                // Smooth move
+                g_CurrentCameraPos = glm::mix(g_CurrentCameraPos, ideal_pos, t);
+                g_CurrentCameraLookAt = glm::mix(g_CurrentCameraLookAt, ideal_lookat, t);
+            }
+
+            // Safety: Ensure camera is never EXACTLY at the look target (causes black screen)
+            if (glm::length(g_CurrentCameraPos - g_CurrentCameraLookAt) < 0.01f) {
+                g_CurrentCameraPos.y += 0.1f; // Nudge it slightly
+            }
 
             // 3. Aplica
             camera_position_c  = glm::vec4(g_CurrentCameraPos, 1.0f);
@@ -436,7 +456,7 @@ int main(int argc, char* argv[])
         //Teste Curva de Bézier
         // E usar 'currentFrameBoxes' para não explodir a memória/CPU
         float t = std::sin(current_time)*0.5 + 0.5;
-        glm::vec3 spherePosition = calculateBezierPoint(t, P0, P1, P2, P3);
+        if (g_RaceFinished == false) spherePosition = calculateBezierPoint(t, P0, P1, P2, P3);
 
         glm::mat4 sphere_model_matrix3 = Matrix_Translate(spherePosition.x,spherePosition.y, spherePosition.z)
                                          * Matrix_Scale(1.0f, 1.0f, 1.0f);
@@ -493,7 +513,14 @@ int main(int argc, char* argv[])
                     g_Sphere.direction = glm::normalize(newVel);
             }
         }
-
+        if (possibleCollisions.count({CAR, FINISH_LINE}))
+        {
+            if (!g_RaceFinished) {
+                printf("FINISH LINE CROSSED! Stopping car...\n");
+                g_RaceFinished = true;
+                g_State.input.run_time = false;
+            }
+        }
         // 7. Desenho (Render)
 
         // Desenha Pista Estática (incluindo esferas)
