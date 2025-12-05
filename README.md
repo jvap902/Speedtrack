@@ -26,6 +26,20 @@
 ## O processo de desenvolvimento
   O processo de desenvolvimento começou de forma muito lenta, por não termos muitas funções iniciais prontas, passávamos muito tempo construíndo coisas do zero para se ter um resultado pequeno; conforme o desenvolvimento foi avançando, foi possível reaproveitar funções em diversas partes do código, permitindo que resultados fossem visualizados mais rapidamente, além disso, a familiaridade que se adquiriu ao longo do processo foi responsável por torná-lo mais simples de se compreender e construir. Em relação aos conceitos de Computação Gráfica, foi bem divertido poder implementar o que foi aprendido e desenvolvido durante o semestre em uma aplicação única, mostrando como tudo está unido e interligado.
 
+## Aplicação dos conceitos de Computação Gráfica:
+ - **Malhas poligonais complexas:** todos objetos são carregados a partir de arquivos .obj, nosso objeto de maior complexidade é a barreira utilizada como obstáculo na pista a qual tem um arquivo .obj de 154782 linhas.
+ - **Tranformações geométricas:** O usuário pode controlar as transformações do carro diretamente (translação e rotação) e da esfera móvel indiretamente, ao acertá-la com o carro.
+ - **Câmeras virtuais:** O jogo possui 2 modos de câmera que são alternados utilizando a tecla V, um é uma câmera look-at fixa atrás do carro e outra é uma câmera livre com foco no carro.
+ - **Objeto virtual copiado:** A pista, as barreiras e as esferas são objetos repetidos na nossa aplicação.
+ - **Testes de intersecção entre objetos virtuais:** Temos 3 tipos de detecção de colisão: <AABB, AABB>, <AABB, Esfera> e <Esfera, Esfera>. A primeira é utilizada quando o carro colide com uma barreira lateral ou barreira obstáculo, a segunda é utilizada quando o carro colide com uma esfera e a terceira quando a esfera móvel colide com outra.
+ - **Iluminação:**
+     - Difusa e Gouraud: Barreiras obstáculo.
+     - Difusa e Phong: Grama.
+     - Blinn-Phong e Phon: Paredes laterais, esferas, carro.
+ - **Mapeamento de texturas:** Todos objetos utilizados possuem uma textura própria.
+ - **Curvas de Bézier:** Uma esfera que é utilizada como obstáculo tem sua movimentação calculada por uma curva de Bézier.
+ - **Animação de movimento baseada no tempo:** Todas animações do jogo são baseadas no tempo e não em _frame rate_
+
 ## Imagens:
 <img width="1916" height="1077" alt="image" src="https://github.com/user-attachments/assets/d8854d88-f74d-4a2b-9828-fa1b6d752e0b" />
 <img width="1916" height="1074" alt="image" src="https://github.com/user-attachments/assets/77f03ca2-aa83-4a38-8c21-b7d924e47503" />
