@@ -38,6 +38,14 @@
   - Espaço congela o jogo.
   
 ## Compilação e execução:
-- Para a compilação, é necessário possuir g++ e CMake instalados. 
-- Para a execução da aplicação, não é necessária a instalação de nenhuma aplicação externa,
+- Para a compilação, é necessário possuir g++ e CMake instalados.
+- Caso esteja utilizando uma IDE como vs code, basta clicar no botão de execução, como mostrado na imagem abaixo
+- <img width="1897" height="1057" alt="image" src="https://github.com/user-attachments/assets/99e7eecb-4cb9-480e-a4c9-8677defb3754" />
+- Caso contrário, pode-se seguir a seguinte sequência de comandos:
+    - mkdir build
+    - cd build
+    - cmake ..
+    - make
+    - ./executable
+- Para a execução da aplicação sem nova compilação, não é necessária a instalação de nenhuma aplicação externa,
 basta acessar o executável que se encontra dentro das pastas bin e Debug, chamado main.exe. 
