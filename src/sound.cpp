@@ -1,6 +1,8 @@
 #include "types.h"
 #include "sound.h"
 
+//FONTE: Sons utilizados são edições dos disponíveis nos seguintes links: https://freesound.org/people/GiocoSound/sounds/401550/ , https://freesound.org/people/ikbenraar/sounds/415276/
+
 void soundInit(Sound& sounds)
 {
 
