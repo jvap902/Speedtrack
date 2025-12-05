@@ -20,6 +20,10 @@
 #define SPHEREBEZIER 8
 #define FINISH_LINE 9
 
+#define CHECKPOINT1 21
+#define CHECKPOINT2 22
+#define CHECKPOINT3 23
+
 // Constants
 const float TRACK_Y = -0.99f;
 const float PIECE_LENGTH = 10.0f;
