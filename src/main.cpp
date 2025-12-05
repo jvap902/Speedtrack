@@ -74,6 +74,11 @@ ShaderProgram g_Shader;
 MovingSphereState g_Sphere;
 std::vector<glm::mat4> g_wallMatrices;
 
+// Variáveis de controle de jogo (fim e checkpoints)
+bool g_RaceFinished = false;
+int g_NextCheckpoint = 1;
+const int numCheckpoints = 3;
+
 // Estruturas de Dados da Cena
 std::map<std::string, SceneObject> g_VirtualScene; // Geometria visual
 std::vector<AABB> g_CollisionBoxes;                // Caixas de colisão estáticas (Pista)
@@ -459,6 +464,38 @@ int main(int argc, char* argv[])
         // Broadphase
         auto possibleCollisions = SweepAndPrune(currentFrameBoxes);
 
+        if (possibleCollisions.count({CAR, CHECKPOINT1})) {
+            if (g_NextCheckpoint == 1) {
+                g_NextCheckpoint = 2;
+                printf("CHECKPOINT 1/3 REACHED!\n");
+            }
+        }
+        if (possibleCollisions.count({CAR, CHECKPOINT2})) {
+            if (g_NextCheckpoint == 2) {
+                g_NextCheckpoint = 3;
+                printf("CHECKPOINT 2/3 REACHED!\n");
+            }
+        }
+        if (possibleCollisions.count({CAR, CHECKPOINT3})) {
+            if (g_NextCheckpoint == 3) {
+                g_NextCheckpoint = 4;
+                printf("CHECKPOINT 3/3 REACHED! GO FOR FINISH!\n");
+            }
+        }
+        if (possibleCollisions.count({CAR, FINISH_LINE}))
+        {
+            if (!g_RaceFinished) {
+
+                if (g_NextCheckpoint > numCheckpoints) { // TROCAR POR UM DEFINE
+                    g_RaceFinished = true;
+                    g_State.input.run_time = false;
+                    g_NextCheckpoint = 1;
+                } else {
+                    // Optional: print "Wrong Way" or just ignore
+                    // printf("Lap Invalid: Missed Checkpoints\n");
+                }
+            }
+        }
         if (possibleCollisions.count({CAR, SPHERE1})){
             // Verifica colisão contra a Esfera 1
             TreatCarSphereCollision(sphere_model_matrix, sphere1UniformScale, car_model_matrix, {CAR, SPHERE1}, g_Car, last_car_pos, g_localSphereHull, g_localCarHulls, g_Sphere);
