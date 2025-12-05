@@ -114,15 +114,11 @@ float g_ForearmAngleX = 0.0f;
 float g_TorsoPositionX = 0.0f;
 float g_TorsoPositionY = 0.0f;
 
-ma_engine engine;
-ma_sound maxSpeed;
-ma_sound idle;
-ma_sound accelerate;
-ma_sound slowDown;
+Sound sounds;
 
 int main(int argc, char* argv[])
 {
-    soundInit(engine, maxSpeed, idle, accelerate, slowDown);
+    soundInit(sounds);
 
     // 1. Inicialização da Janela e Contexto
     int success = glfwInit();
@@ -296,7 +292,7 @@ int main(int argc, char* argv[])
     // --- LOOP PRINCIPAL ---
     while (!glfwWindowShouldClose(window))
     {
-        soundControl(maxSpeed, idle, accelerate, slowDown, g_State.input, g_Car);
+        soundControl(sounds, g_State.input, g_Car);
 
         // 1. Gestão de Tempo
         float current_time = (float)glfwGetTime();
@@ -558,7 +554,7 @@ int main(int argc, char* argv[])
         glfwPollEvents();
     }
 
-    ma_engine_uninit(&engine);
+    ma_engine_uninit(&sounds.engine);
 
     glfwTerminate();
     return 0;

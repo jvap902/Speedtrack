@@ -7,6 +7,7 @@
 #include <glm/glm.hpp>
 #include <tiny_obj_loader.h>
 #include <stb_image.h>
+#include "miniaudio.h"
 
 // Object IDs
 #define CAR    0
@@ -126,4 +127,22 @@ struct DefaultPositions
 {
     CarState car;
     MovingSphereState sphere;
+};
+
+struct Sound
+{
+    ma_engine engine;
+    ma_sound maxSpeed;
+    ma_sound idle;
+    ma_sound accelerate;
+    ma_sound slowDown;
+
+    uint64_t idleFrames;
+    uint64_t maxFrames;
+    uint64_t accelerateFrames;
+    uint64_t slowFrames;
+
+    uint32_t sampleRate;
+
+    bool releasedW;
 };
