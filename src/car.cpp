@@ -112,24 +112,23 @@ void TreatCarSphereCollision(const glm::mat4& sphere_model_matrix, float sphereU
             CarMovingSphere(sphere_model_matrix, car_model_matrix, car, largestMtv, sphere);
 
         else {
-        // Pushback
-        largestMtv.y = 0.0f;
+            // Pushback
+            largestMtv.y = 0.0f;
 
 
-        car.position.x += largestMtv.x;
-        car.position.y += largestMtv.y;
-        car.position.z += largestMtv.z;
+            car.position.x += largestMtv.x;
+            car.position.y += largestMtv.y;
+            car.position.z += largestMtv.z;
 
-        // Stop velocity
-        car.speed = -car.speed * 0.4f;
+            // Stop velocity
+            car.speed = -car.speed * 0.4f;
         }
     }
 }
 
-void TreatCarBarrierCollision(const glm::mat4& car_model_matrix, const std::pair<int,int>& collision, CarState& car, const glm::vec3& last_pos, const std::vector<OBB>& localCarHulls, const std::vector<AABB>& localBarrierHulls)
+void TreatCarBarrierCollision(const glm::mat4& car_model_matrix, CarState& car, const glm::vec3& last_pos, float& last_angle, const std::vector<OBB>& localCarHulls, const std::vector<AABB>& localBarrierHulls)
 {
     for (auto localBarrierHull : localBarrierHulls){
-        glm::vec3 largestMtv(0.0f);
         bool hasCollided = false;
 
         // Get Barrier AABB
@@ -144,39 +143,19 @@ void TreatCarBarrierCollision(const glm::mat4& car_model_matrix, const std::pair
             OBB worldBox = TransformOBB(localBox, car_model_matrix);
 
             glm::vec3 mtv;
-            if (AabbObbCollision(worldBarrierAABB, worldBox, mtv))
+            if (AabbObbCollision(worldBarrierAABB, worldBox))
             {
                 hasCollided = true;
-                if (glm::length(mtv) > glm::length(largestMtv))
-                    largestMtv = mtv;
             }
         }
 
         if (hasCollided)
         {
-            // --- PUSH CAR OUT ---
-            largestMtv.y = 0.0f;
-            
-            car.position.x += largestMtv.x;
-            car.position.y += largestMtv.y;
-            car.position.z += largestMtv.z;
 
-            // --- REALISTIC SLIDING RESPONSE ---
+            car.position = last_pos;
+            car.angle = last_angle;
 
-            // Remove the component of velocity that goes into the wall
-            float normalPush = glm::dot(glm::normalize(largestMtv), carForward);
-
-            // If the car is pushing into the barrier
-            if (normalPush < 0.0f)
-            {
-                // Remove forward velocity into the wall (sliding effect)
-                car.speed *= 0.2f;     // keep only 20% -> slides along the wall
-            }
-            else
-            {
-                // Stop velocity
-                car.speed = -car.speed * 0.4f;
-            }
+            car.speed = -car.speed * 0.4f;
         }
     }
 }

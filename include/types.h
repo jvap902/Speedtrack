@@ -15,9 +15,10 @@
 #define SPHERE2 3
 #define BARRIER  4
 #define STRAIGHT 5
-#define RAMP 6
+#define WALL 6
 #define TURN 7
 #define SPHEREBEZIER 8
+#define FINISH_LINE 9
 
 // Constants
 const float TRACK_Y = -0.99f;
@@ -69,6 +70,7 @@ struct TrackCursor {
 struct InputState {
     bool w = false, s = false, a = false, d = false;
     bool run_time = false;
+    bool reset = false;
     bool debug_mode = false;
     bool camera_mode = false;
 };
@@ -118,4 +120,10 @@ struct ObjModel
     std::vector<tinyobj::shape_t>     shapes;
     std::vector<tinyobj::material_t>  materials;
     ObjModel(const char* filename, const char* basepath = NULL, bool triangulate = true);
+};
+
+struct DefaultPositions
+{
+    CarState car;
+    MovingSphereState sphere;
 };

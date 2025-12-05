@@ -19,16 +19,16 @@ uniform mat4 view;
 uniform mat4 projection;
 
 // Identificador que define qual objeto está sendo desenhado no momento
-#define CAR  0
+#define CAR    0
 #define SPHERE1 1
 #define PLANE  2
 #define SPHERE2 3
 #define BARRIER  4
-
 #define STRAIGHT 5
-#define RAMP 6
+#define WALL 6
 #define TURN 7
 #define SPHEREBEZIER 8
+#define FINISH_LINE 9
 
 uniform int object_id;
 
@@ -47,6 +47,8 @@ uniform sampler2D TextureImage6;
 uniform sampler2D TextureImage7;
 uniform sampler2D TextureImage8;
 uniform sampler2D TextureImage9;
+uniform sampler2D TextureImage10;
+uniform sampler2D TextureImage11;
 
 // Novo atributo in para Gouraud Shading da esfera
 in vec4 cor_v;
@@ -112,11 +114,11 @@ void main()
         // Multiplicamos por 50.0 para repetir a textura (tiling).
         //vec2 plane_uv = vec2(position_model.x, position_model.z) * 100.0;
         //vec3 texColor = texture(TextureImage2, plane_uv).rgb;
-        vec3 texColor = texture(TextureImage2, (texcoords* 25.0)).rgb ;
+        vec3 texColor = texture(TextureImage2, (texcoords * 5.0f)).rgb ; //diminui o * 25.0 do texcoords, isso diminuia o tamanho das imagens e fazia precisar repetir muitas mais vezes
         // Coeficientes espectrais derivados da textura
         Kd = texColor;                  // Difusa baseada na textura
         Ka = texColor * 0.3;            // Ambiente mais fraco
-        Ks = vec3(0.1, 0.1, 0.1);       // Asfalto não brilha muito
+        Ks = vec3(0.01, 0.01, 0.01);       // Asfalto não brilha muito
         q  = 2.0;                      // Brilho bem suave
     }
     else if ( object_id == CAR )
@@ -130,13 +132,32 @@ void main()
         q  = 64.0;                      // Brilho moderado
     }
     else if (object_id == PLANE) {
-        vec2 plane_uv = vec2(position_model.x, position_model.z) * 2000.0;
+        vec2 plane_uv = vec2(position_model.x, position_model.z) * 32.0;
         vec3 texColor = texture(TextureImage9, plane_uv).rgb;
 
         Kd = texColor;                  // Difusa baseada na textura
+        Ka = texColor * 0.0;            // Ambiente mais fraco
+        Ks = vec3(0.0, 0.0, 0.0);
+        q  = 1.0;                      // Brilho bem suave
+    }
+    else if (object_id == WALL) {
+        vec2 plane_uv = vec2(position_model.x, position_model.z) * 1.0;
+        vec3 texColor = texture(TextureImage10, plane_uv).rgb ;
+
+        // Coeficientes espectrais derivados da textura
+        Kd = texColor;                  // Difusa baseada na textura
         Ka = texColor * 0.3;            // Ambiente mais fraco
-        Ks = vec3(0.1, 0.1, 0.1);       // Asfalto não brilha muito
-        q  = 2.0;                      // Brilho bem suave
+        Ks = vec3(0.01, 0.01, 0.01);       // Asfalto não brilha muito
+        q  = 2.0;
+    }
+    else if (object_id == FINISH_LINE) {
+        vec2 plane_uv = vec2(position_model.x, position_model.z) * 0.250;
+        vec3 texColor = texture(TextureImage11, plane_uv).rgb;
+
+        Kd = texColor;                  // Difusa baseada na textura
+        Ka = texColor * 0.3;            // Ambiente mais fraco
+        Ks = vec3(0.01, 0.01, 0.01);       // Asfalto não brilha muito
+        q  = 2.0;
     }
 
     
@@ -189,52 +210,8 @@ void main()
         color.rgb = Kd0 * (lambert * ao + 0.1 * ao) + ambient_term;
     }
     else if (object_id == BARRIER){
-    // --- SAMPLE BARRIER TEXTURES ---
-    // main.cpp loads textures as:
-    // TextureImage4 = ARM (ambient/roughness/metal in channels)
-    // TextureImage5 = DIFFUSE / ALBEDO
-    // TextureImage6 = NORMAL
-
-    // Local light definitions (keep this block self-contained)
-    vec3 I  = vec3(1.0, 1.0, 1.0);
-    vec3 Ia = vec3(0.2, 0.2, 0.2);
-
-    // Sample textures (use the order from main.cpp)
-    vec3 armMap    = texture(TextureImage4, texcoords).rgb; // AO / Rough / Metal
-    vec3 albedo    = texture(TextureImage5, texcoords).rgb; // Diffuse / Albedo
-    vec3 normalMap = texture(TextureImage6, texcoords).rgb; // Normal map (if you later add TBN)
-
-    // Extract channels
-    float ao        = armMap.r;
-    float roughness = clamp(armMap.g, 0.0, 1.0);
-    // float metallic = armMap.b; // unused for now
-
-    // Convert interpolated vec4 variables to vec3 for math here (no change outside)
-    vec3 n3 = normalize(n.xyz);
-    vec3 l3 = normalize(l.xyz);
-    vec3 v3 = normalize(v.xyz);
-    // reflection will be computed below using vec3 functions
-    // If you later pass TBN from vertex shader, replace final_normal with TBN*tangent_normal
-    vec3 final_normal = n3;
-
-    // Material coefficients (map your PBR-ish maps to Phong terms)
-    Kd = albedo;
-    Ka = albedo * 0.3 * ao;            // ambient scaled by AO
-    Ks = vec3(0.5, 0.5, 0.5);          // tweakable specular color
-    q  = mix(256.0, 10.0, roughness);  // shininess derived from roughness
-
-    // Phong lighting (using vec3)
-    float lambert = max(dot(final_normal, l3), 0.0);
-    vec3 lambert_diffuse_term = Kd * I * lambert;
-
-    vec3 ambient_term = Ka * Ia;
-
-    // Use reflect() for specular direction (vec3)
-    vec3 refl = reflect(-l3, final_normal);
-    float specFactor = pow( max(dot(refl, v3), 0.0), q );
-    vec3 phong_specular_term = Ks * I * specFactor;
-
-    color.rgb = lambert_diffuse_term + phong_specular_term + ambient_term;
+        // Simply output the interpolated color
+        color.rgb = cor_v.rgb;
     }
     else{
         // Espectro da fonte de iluminação

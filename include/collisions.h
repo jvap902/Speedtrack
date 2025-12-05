@@ -22,4 +22,4 @@ void BuildBBoxArray(const std::map<std::string, SceneObject>& virtualScene, std:
 // REFACTORED: Removed debug drawing (Renderer dependency) and fixed pass-by-value
 bool SphereSphereCollision(const ObjModel& obj1, const ObjModel& obj2, glm::mat4 object1_model, int object1_id, glm::mat4 object2_model, int object2_id, float object1_uniformScale, float object2_UniformScale);
 OBB TransformOBB(const OBB& localBox, const glm::mat4& transform);
-bool AabbObbCollision(const AABB& aabb, const OBB& obb, glm::vec3& mtv);
+bool AabbObbCollision(const AABB& aabb, const OBB& obb);

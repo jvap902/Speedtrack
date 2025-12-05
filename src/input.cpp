@@ -1,5 +1,4 @@
 #include "input.h"
-#include "types.h" // Precisamos da definição de GameState
 #include <cmath>
 #include <string>
 
@@ -83,8 +82,7 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
     }
 
     if (key == GLFW_KEY_R && action == GLFW_PRESS){
-        state->input.run_time = false;
-        state->time = 0.0f;
+        state->input.reset = true;
     }
 
     // Modos de Debug
@@ -186,5 +184,17 @@ void TimeControl(GLFWwindow* window, float delta){
 
     snprintf(buffer, 20, "%.2f", state->time);
 
-    TextRendering_PrintString(window, buffer, 0.0f, 1.0f-(lineheight*3.0f), 3.0f);    
+    TextRendering_PrintString(window, buffer, -charwidth, 1.0f-(lineheight*3.0f), 3.0f);    
+}
+
+void Reset(GLFWwindow* window, CarState& Car, MovingSphereState& Sphere, DefaultPositions& DefPos)
+{
+    GameState* state = GetState(window);
+
+    state->input.reset = false;
+    state->input.run_time = false;
+    state->time = 0.0f;
+
+    Car = DefPos.car;
+    Sphere = DefPos.sphere;
 }

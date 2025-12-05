@@ -14,7 +14,8 @@ void AddStraight(std::vector<std::tuple<glm::mat4, const char*, int>>& objects,
                  std::vector<AABB>& boxes,
                  int& bboxId,
                  TrackCursor& cursor,
-                 std::vector<AABB>& barrierHulls)
+                 std::vector<AABB>& barrierHulls,
+                 bool barrier)
 {
     float rad = glm::radians(cursor.angleY);
 
@@ -32,42 +33,31 @@ void AddStraight(std::vector<std::tuple<glm::mat4, const char*, int>>& objects,
     // Add to visual list
     objects.push_back(std::make_tuple(model, "the_reta", STRAIGHT));
 
-    // Add to collision list
-    BuildBBoxArray(scene, boxes, bboxId, "the_reta", model, STRAIGHT);
-
     // Barreiras
     float radPiece = glm::radians(cursor.angleY);
 
     // barrier = piece direction + 90 degrees
-    float barrierAngle = radPiece + glm::radians(90.0f);
+    float barrierAngle = radPiece;
 
     // normalize to [0, 2π)
     barrierAngle = fmod(barrierAngle + 2.0f*M_PI, 2.0f*M_PI);
 
     glm::vec3 barrierDraw = drawPos;
     
-    if(floatEqual(barrierAngle, glm::radians(90.0f)) || floatEqual(barrierAngle, glm::radians(270.0f))){ // se for positivo, é igual a giro de 90 graus da barreira
-        barrierDraw.x -= 5.0f;
-        for (int i=0; i<2; i++){
-            barrierDraw.z = drawPos.z - 5.0f;
-            for (int j=0; j<6; j++){
-                BuildBarrier(barrierDraw, barrierAngle, objects, scene, boxes, bboxId, barrierHulls);
-                barrierDraw.z += 2.0f;
-            }    
-            barrierDraw.x = drawPos.x + 5.0f;
-        }
-    }
-    else{
-        barrierDraw.z -= 5.0f;
-        for (int i=0; i<2; i++){
-            barrierDraw.x =  drawPos.x - 5.0f;
-            for (int j=0; j<6; j++){
-                BuildBarrier(barrierDraw, barrierAngle, objects, scene, boxes, bboxId, barrierHulls);
-                barrierDraw.x += 2.0f;
-            }    
-            barrierDraw.z = drawPos.z + 5.0f;
-        }
-    }
+    if(barrier)
+        BuildBarrier(barrierDraw, barrierAngle, objects, scene, boxes, bboxId, barrierHulls);
+
+    auto barrier_matrix = model * Matrix_Translate(6.0f, 0.5f, 0.0f);
+        
+    // Barreira lateral 1
+    objects.push_back(std::make_tuple(barrier_matrix, "the_retangulo", WALL));
+    BuildBBoxArray(scene, boxes, bboxId, "the_retangulo", barrier_matrix, WALL);
+            
+    barrier_matrix = model * Matrix_Translate(-6.0f, 0.5f, 0.0f);
+
+    // Barreira lateral 2
+    objects.push_back(std::make_tuple(barrier_matrix, "the_retangulo", WALL));
+    BuildBBoxArray(scene, boxes, bboxId, "the_retangulo", barrier_matrix, WALL);
 
     // Update Cursor to the END of the piece
     cursor.position += (forward * PIECE_LENGTH);
@@ -77,7 +67,9 @@ void AddTurnLeft(std::vector<std::tuple<glm::mat4, const char*, int>>& objects,
                  const std::map<std::string, SceneObject>& scene,
                  std::vector<AABB>& boxes,
                  int& bboxId,
-                 TrackCursor& cursor)
+                 TrackCursor& cursor,
+                 std::vector<AABB>& barrierHulls,
+                 bool barrier)
 {
     float rad = glm::radians(cursor.angleY);
 
@@ -85,9 +77,10 @@ void AddTurnLeft(std::vector<std::tuple<glm::mat4, const char*, int>>& objects,
     glm::mat4 model = Matrix_Translate(cursor.position.x, cursor.position.y, cursor.position.z)
                     * Matrix_Rotate_Y(-rad);
 
+    glm::vec3 drawPos = cursor.position;
+
     // Add to list
     objects.push_back(std::make_tuple(model, "the_turn", TURN));
-    BuildBBoxArray(scene, boxes, bboxId, "the_turn", model, TURN);
 
     // --- UPDATE CURSOR LOGIC ---
     float R = TURN_RADIUS;
@@ -97,6 +90,40 @@ void AddTurnLeft(std::vector<std::tuple<glm::mat4, const char*, int>>& objects,
 
     // Apply displacement: Move R Forward AND R Left
     cursor.position += (forward * R) + (left * R);
+
+        // Barreiras
+    float radPiece = glm::radians(cursor.angleY);
+
+    // barrier = piece direction + 90 degrees
+    float barrierAngle = radPiece;
+
+    // normalize to [0, 2π)
+    barrierAngle = fmod(barrierAngle + 2.0f*M_PI, 2.0f*M_PI);
+
+    glm::vec3 barrierDraw = drawPos;
+    
+    if(barrier)
+        BuildBarrier(barrierDraw, barrierAngle, objects, scene, boxes, bboxId, barrierHulls);
+
+    auto barrier_matrix = model * Matrix_Translate(6.0f, 0.5f, 0.0f);
+
+    // Barreira lateral 1
+    objects.push_back(std::make_tuple(barrier_matrix, "the_retangulo", WALL));
+    BuildBBoxArray(scene, boxes, bboxId, "the_retangulo", barrier_matrix, WALL);
+    // Barreira lateral 2
+    barrier_matrix = model  * Matrix_Translate(6.0f, 0.5f, -PIECE_LENGTH + 1.51f)
+                            * Matrix_Scale(1.0f, 1.0f, 0.695f)
+                            * Matrix_Identity();
+    objects.push_back(std::make_tuple(barrier_matrix, "the_retangulo", WALL));
+    BuildBBoxArray(scene, boxes, bboxId, "the_retangulo", barrier_matrix, WALL);
+
+    //Barreira lateral 3
+    barrier_matrix = model  * Matrix_Translate(0.0f, 0.5f, (-TURN_RADIUS*2.0 + 0.36))
+                            * Matrix_Rotate_Y(glm::radians(90.0f))
+                            * Matrix_Scale(1.0f, 1.0f, 1.27f)
+                            * Matrix_Identity();
+    objects.push_back(std::make_tuple(barrier_matrix, "the_retangulo", WALL));
+    BuildBBoxArray(scene, boxes, bboxId, "the_retangulo", barrier_matrix, WALL);
 
     // Rotate cursor 90 degrees LEFT for the next piece
     cursor.angleY -= 90.0f;
@@ -119,29 +146,68 @@ void BuildBarrier(glm::vec3 position, float rotate,
     barrierHulls.push_back(g_CollisionBoxes[bbox_id_counter-1]);
 }
 
+void AddFinishLine(std::vector<std::tuple<glm::mat4, const char*, int>>& objects,
+                 const std::map<std::string, SceneObject>& scene,
+                 std::vector<AABB>& boxes,
+                 int& bboxId,
+                 TrackCursor& cursor)
+{
+    float rad = glm::radians(cursor.angleY);
+
+    // Forward vector logic remains the same (0 deg = -Z)
+    glm::vec3 forward = glm::vec3(sin(rad), 0.0f, -cos(rad));
+
+    // Move cursor to CENTER of the piece to draw it
+    glm::vec3 drawPos = cursor.position + (forward * (PIECE_LENGTH / 2.0f));
+
+    // This aligns the visual model (Local -Z) with the logical forward vector.
+    glm::mat4 model = Matrix_Translate(drawPos.x, drawPos.y, drawPos.z)
+                    * Matrix_Rotate_Y(-rad)
+                    * Matrix_Identity();
+
+    // Add to visual list
+    objects.push_back(std::make_tuple(model, "the_reta", FINISH_LINE));
+
+    auto barrier_matrix = model * Matrix_Translate(6.0f, 0.5f, 0.0f);
+
+    // Barreira lateral 1
+    objects.push_back(std::make_tuple(barrier_matrix, "the_retangulo", WALL));
+    BuildBBoxArray(scene, boxes, bboxId, "the_retangulo", barrier_matrix, WALL);
+
+    barrier_matrix = model * Matrix_Translate(-6.0f, 0.5f, 0.0f);
+
+    // Barreira lateral 2
+    objects.push_back(std::make_tuple(barrier_matrix, "the_retangulo", WALL));
+    BuildBBoxArray(scene, boxes, bboxId, "the_retangulo", barrier_matrix, WALL);
+
+    // Update Cursor to the END of the piece
+    cursor.position += (forward * PIECE_LENGTH);
+}
+
 void BuildTrack(std::vector<std::tuple<glm::mat4, const char*, int>>& objects,
                 const std::map<std::string, SceneObject>& scene,
                 std::vector<AABB>& boxes,
                 int& bboxId,
                 TrackCursor& cursor,
-                std::vector<AABB>& barrierHulls) {
+                std::vector<AABB>& barrierHulls,
+                std::vector<glm::mat4>& wall_matrices) {
 
     printf("Building Track...\n");
 
     // START LINE
     AddStraight(objects, scene, boxes, bboxId, cursor, barrierHulls);
-    AddStraight(objects, scene, boxes, bboxId, cursor, barrierHulls);
+    AddFinishLine(objects, scene, boxes, bboxId, cursor);
     AddStraight(objects, scene, boxes, bboxId, cursor, barrierHulls);
 
     // TURN 1
-    AddTurnLeft(objects, scene, boxes, bboxId, cursor);
+    AddTurnLeft(objects, scene, boxes, bboxId, cursor, barrierHulls, true);
 
     // SIDE STRAIGHTS
-    AddStraight(objects, scene, boxes, bboxId, cursor, barrierHulls);
+    AddStraight(objects, scene, boxes, bboxId, cursor, barrierHulls, true);
     AddStraight(objects, scene, boxes, bboxId, cursor, barrierHulls);
 
     // TURN 2
-    AddTurnLeft(objects, scene, boxes, bboxId, cursor);
+    AddTurnLeft(objects, scene, boxes, bboxId, cursor, barrierHulls, true);
 
     // BACK STRAIGHTS
     AddStraight(objects, scene, boxes, bboxId, cursor, barrierHulls);
@@ -151,14 +217,14 @@ void BuildTrack(std::vector<std::tuple<glm::mat4, const char*, int>>& objects,
     AddStraight(objects, scene, boxes, bboxId, cursor, barrierHulls);
 
     // TURN 3
-    AddTurnLeft(objects, scene, boxes, bboxId, cursor);
+    AddTurnLeft(objects, scene, boxes, bboxId, cursor, barrierHulls);
 
     // SIDE STRAIGHTS
     AddStraight(objects, scene, boxes, bboxId, cursor, barrierHulls);
     AddStraight(objects, scene, boxes, bboxId, cursor, barrierHulls);
 
     // TURN 4
-    AddTurnLeft(objects, scene, boxes, bboxId, cursor);
+    AddTurnLeft(objects, scene, boxes, bboxId, cursor, barrierHulls, true);
 
     // FINISH LINE
     AddStraight(objects, scene, boxes, bboxId, cursor, barrierHulls);

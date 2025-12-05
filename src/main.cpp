@@ -36,6 +36,10 @@
 #include "track.h"
 #include "moving_objects.h"
 
+//áudio
+#define MINIAUDIO_IMPLEMENTATION
+#include "sound.h"
+
 // Declaração de funções auxiliares para renderizar texto dentro da janela
 
 // OpenGL. Estas funções estão definidas no arquivo "textrendering.cpp".
@@ -68,6 +72,7 @@ GameState     g_State;
 CarState      g_Car;
 ShaderProgram g_Shader;
 MovingSphereState g_Sphere;
+std::vector<glm::mat4> g_wallMatrices;
 
 // Estruturas de Dados da Cena
 std::map<std::string, SceneObject> g_VirtualScene; // Geometria visual
@@ -109,13 +114,20 @@ float g_ForearmAngleX = 0.0f;
 float g_TorsoPositionX = 0.0f;
 float g_TorsoPositionY = 0.0f;
 
+ma_engine engine;
+ma_sound maxSpeed;
+ma_sound idle;
+ma_sound accelerate;
+ma_sound slowDown;
 
 int main(int argc, char* argv[])
 {
+    soundInit(engine, maxSpeed, idle, accelerate, slowDown);
+
     // 1. Inicialização da Janela e Contexto
     int success = glfwInit();
     if (!success) { fprintf(stderr, "ERROR: glfwInit() failed.\n"); std::exit(EXIT_FAILURE); }
-
+    
     glfwSetErrorCallback(ErrorCallback);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -123,11 +135,11 @@ int main(int argc, char* argv[])
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
     #endif
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
+    
     // Fullscreen ou Janela
     GLFWmonitor* monitor = glfwGetPrimaryMonitor();
     const GLFWvidmode* mode = glfwGetVideoMode(monitor);
-
+    
     // Para janela em modo janela, use:
     // GLFWwindow* window = glfwCreateWindow(1600, 900, "SpeedTrack", NULL, NULL);
     GLFWwindow* window = glfwCreateWindow(mode->width, mode->height, "SpeedTrack", NULL, NULL);
@@ -174,10 +186,12 @@ int main(int argc, char* argv[])
     LoadTextureImage("../../models/Jeep_Renegade_2016/Jeep_Renegade_2016/car_jeep_ren.jpg", g_NumLoadedTextures); // 3
     LoadTextureImage("../../models/concrete_road_barrier/textures/concrete_road_barrier_arm_4k.jpg", g_NumLoadedTextures); // 4
     LoadTextureImage("../../models/concrete_road_barrier/textures/concrete_road_barrier_diff_4k.jpg", g_NumLoadedTextures); // 5
-    LoadTextureImage("../../models/concrete_road_barrier/textures/concrete_road_barrier_nor_gl_4k.jpg", g_NumLoadedTextures); // 6
+    LoadTextureImage("../../models/concrete_road_barrier/textures/concrete_road_barrier_nor_gl_4k.png", g_NumLoadedTextures); // 6
     LoadTextureImage("../../models/sphere_textures/beige_wall_001_diff_4k.jpg", g_NumLoadedTextures); // 7
     LoadTextureImage("../../models/sphere_textures/beige_wall_001_disp_4k.png", g_NumLoadedTextures); // 8
     LoadTextureImage("../../data/textura_grama.jpg", g_NumLoadedTextures); // 9
+    LoadTextureImage("../../data/worn_shutter_diff_1k.jpg", g_NumLoadedTextures); // 10
+    LoadTextureImage("../../data/finish_line_dense.png", g_NumLoadedTextures); // 11
 
     // Carrega Modelos
     // Esfera
@@ -218,6 +232,10 @@ int main(int argc, char* argv[])
     ComputeNormals(&barriermodel);
     BuildTrianglesAndAddToVirtualScene(g_VirtualScene, &barriermodel);
 
+    ObjModel wallmodel("../../models/pista/retangulo.obj");
+    ComputeNormals(&wallmodel);
+    BuildTrianglesAndAddToVirtualScene(g_VirtualScene, &wallmodel);
+
     // 3. Inicialização da Pista (Level Design)
     TrackCursor cursor;
     cursor.position = glm::vec3(0.0f, TRACK_Y, 5.0f);
@@ -225,11 +243,13 @@ int main(int argc, char* argv[])
     int bbox_id_counter = 0;
 
     // Constrói a pista e popula g_TrackObjects e g_CollisionBoxes
-    BuildTrack(g_TrackObjects, g_VirtualScene, g_CollisionBoxes, bbox_id_counter, cursor, g_localBarrierHulls);
+    BuildTrack(g_TrackObjects, g_VirtualScene, g_CollisionBoxes, bbox_id_counter, cursor, g_localBarrierHulls, g_wallMatrices);
+
+    std::vector<AABB> wall_bboxes = g_CollisionBoxes;
 
     // Adiciona esfera estática à cena
     float sphere1UniformScale = 1.0f;
-    glm::mat4 sphere_model_matrix = Matrix_Translate(0.0f, 0.0f, -10.0f) * Matrix_Scale(sphere1UniformScale, sphere1UniformScale, sphere1UniformScale);
+    glm::mat4 sphere_model_matrix = Matrix_Translate(-32.0f, 0.0f, -10.0f) * Matrix_Scale(sphere1UniformScale, sphere1UniformScale, sphere1UniformScale);
     g_TrackObjects.push_back(std::make_tuple(sphere_model_matrix, "the_sphere", SPHERE1));
     BuildBBoxArray(g_VirtualScene, g_CollisionBoxes, bbox_id_counter, "the_sphere", sphere_model_matrix, SPHERE1);
 
@@ -252,16 +272,22 @@ int main(int argc, char* argv[])
     glCullFace(GL_BACK);
     glFrontFace(GL_CCW);
 
+    //posições iniciais dos objetos móveis
+    DefaultPositions defPos;
+    defPos.car.position = glm::vec3(2.0f, -1.0f, 0.0f);
+    defPos.car.angle    = 0.0f;
+    defPos.car.speed    = 0.0f;
+
+    defPos.sphere.position = glm::vec3(-35.0f, -0.3f, 0.0f);
+    defPos.sphere.angle    = 0.0f;
+    defPos.sphere.speed    = 0.0f;
+    defPos.sphere.direction = glm::vec3(0.0f, 0.0f, 1.0f);
+
     // Setup inicial do Carro
-    g_Car.position = glm::vec3(2.0f, -1.0f, 0.0f);
-    g_Car.angle    = 0.0f;
-    g_Car.speed    = 0.0f;
+    g_Car = defPos.car;
 
     // Setup inicial da esfera que se move
-    g_Sphere.position = glm::vec3(-30.0f, -0.3f, 0.0f);
-    g_Sphere.angle    = 0.0f;
-    g_Sphere.speed    = 0.0f;
-    g_Sphere.direction = glm::vec3(0.0f, 0.0f, 1.0f);
+    g_Sphere = defPos.sphere;
 
     // Controle de Tempo
     float prev_time = (float)glfwGetTime();
@@ -270,6 +296,8 @@ int main(int argc, char* argv[])
     // --- LOOP PRINCIPAL ---
     while (!glfwWindowShouldClose(window))
     {
+        soundControl(maxSpeed, idle, accelerate, slowDown, g_State.input, g_Car);
+
         // 1. Gestão de Tempo
         float current_time = (float)glfwGetTime();
         deltaTime = current_time - prev_time;
@@ -304,9 +332,13 @@ int main(int argc, char* argv[])
 
         // Guarda posição anterior para resolução de colisão
         glm::vec3 last_car_pos = g_Car.position;
+        float last_car_angle = g_Car.angle;
         glm::vec3 last_sphere_pos = g_Sphere.position;
 
-        CarControl(g_Car, g_State.input, deltaTime);
+        if(g_State.input.run_time) CarControl(g_Car, g_State.input, deltaTime); //carro só mexe se tempo estiver contando
+
+        if(g_State.input.reset) Reset(window, g_Car, g_Sphere, defPos);
+
         SphereControl(g_Sphere, deltaTime);
 
         if (g_State.input.camera_mode) // Câmera Livre
@@ -382,10 +414,13 @@ int main(int argc, char* argv[])
         glm::mat4 view = Matrix_Camera_View(camera_position_c, camera_view_vector, camera_up_vector);
         glm::mat4 projection;
 
+        float nearplane = -0.1f;
+        float farplane = -80.0f;
+
         if (g_State.usePerspective)
-            projection = Matrix_Perspective(3.141592f / 3.0f, g_State.screenRatio, -0.1f, -500.0f);
+            projection = Matrix_Perspective(3.141592f / 3.0f, g_State.screenRatio, nearplane, farplane);
         else
-            projection = Matrix_Orthographic(-10.0f * g_State.screenRatio, 10.0f * g_State.screenRatio, -10.0f, 10.0f, -0.1f, -500.0f);
+            projection = Matrix_Orthographic(-10.0f * g_State.screenRatio, 10.0f * g_State.screenRatio, -10.0f, 10.0f, nearplane, farplane);
 
         glUniformMatrix4fv(g_Shader.view_uniform, 1, GL_FALSE, glm::value_ptr(view));
         glUniformMatrix4fv(g_Shader.projection_uniform, 1, GL_FALSE, glm::value_ptr(projection));
@@ -432,12 +467,15 @@ int main(int argc, char* argv[])
             // Verifica colisão contra a Esfera 2
             TreatCarSphereCollision(sphere_model_matrix2, sphere2UniformScale, car_model_matrix, {CAR, SPHERE2}, g_Car, last_car_pos, g_localSphereHull, g_localCarHulls, g_Sphere);
         }
-        if (possibleCollisions.count({CAR, BARRIER})) {
-            TreatCarBarrierCollision(car_model_matrix, {CAR, BARRIER}, g_Car, last_car_pos, g_localCarHulls, g_localBarrierHulls);
-        }
         if(possibleCollisions.count({CAR, SPHEREBEZIER})) {
             // Verifica colisão contra a Esfera Bezier
             TreatCarSphereCollision(sphere_model_matrix3, 1.0f, car_model_matrix, {CAR, SPHEREBEZIER}, g_Car, last_car_pos, g_localSphereHull, g_localCarHulls, g_Sphere);
+        }
+        if (possibleCollisions.count({CAR, BARRIER})) {
+            TreatCarBarrierCollision(car_model_matrix, g_Car, last_car_pos, last_car_angle, g_localCarHulls, g_localBarrierHulls);
+        }
+        if (possibleCollisions.count({CAR, WALL})) {
+            TreatCarBarrierCollision(car_model_matrix, g_Car, last_car_pos, last_car_angle, g_localCarHulls, wall_bboxes);
         }
         if (possibleCollisions.count({SPHERE1, SPHERE2})) {
             if (SphereSphereCollision(spheremodel, spheremodel, sphere_model_matrix, SPHERE1, sphere_model_matrix2, SPHERE2, sphere1UniformScale, sphere2UniformScale)){
@@ -446,6 +484,9 @@ int main(int argc, char* argv[])
         }
         if (possibleCollisions.count({SPHERE2, BARRIER})){
             SphereBarrierCollision(sphere_model_matrix2, sphere2UniformScale, g_localBarrierHulls, g_Sphere);
+        }
+        if (possibleCollisions.count({SPHERE2, WALL})){
+            SphereBarrierCollision(sphere_model_matrix2, sphere2UniformScale, wall_bboxes, g_Sphere);
         }
         if (possibleCollisions.count({SPHERE2, SPHEREBEZIER})) {
             if (SphereSphereCollision(spheremodel, spheremodel, sphere_model_matrix3, SPHEREBEZIER, sphere_model_matrix2, SPHERE2, 0.5f, sphere2UniformScale)){
@@ -465,8 +506,6 @@ int main(int argc, char* argv[])
                     g_Sphere.direction = glm::normalize(newVel);
             }
         }
-
-        // Nota: Se você tiver colisão CAR vs PLANE ou CAR vs WALL, adicione aqui usando TreatCarCollision (adaptando para OBB vs OBB se necessário)
 
         // 7. Desenho (Render)
 
@@ -518,6 +557,8 @@ int main(int argc, char* argv[])
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
+
+    ma_engine_uninit(&engine);
 
     glfwTerminate();
     return 0;

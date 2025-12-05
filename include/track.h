@@ -14,9 +14,18 @@ void AddStraight(std::vector<std::tuple<glm::mat4, const char*, int>>& objects,
                  std::vector<AABB>& boxes,
                  int& bboxId,
                  TrackCursor& cursor,
-                 std::vector<AABB>& barrierHulls);
+                 std::vector<AABB>& barrierHulls,
+                 bool barrier=false);
 
 void AddTurnLeft(std::vector<std::tuple<glm::mat4, const char*, int>>& objects,
+                 const std::map<std::string, SceneObject>& scene,
+                 std::vector<AABB>& boxes,
+                 int& bboxId,
+                 TrackCursor& cursor,
+                 std::vector<AABB>& barrierHulls,
+                 bool barrier=false);
+
+void AddFinishLine(std::vector<std::tuple<glm::mat4, const char*, int>>& objects,
                  const std::map<std::string, SceneObject>& scene,
                  std::vector<AABB>& boxes,
                  int& bboxId,
@@ -27,7 +36,8 @@ void BuildTrack(std::vector<std::tuple<glm::mat4, const char*, int>>& objects,
                 std::vector<AABB>& boxes,
                 int& bboxId,
                 TrackCursor& cursor,
-                std::vector<AABB>& barrierHulls);
+                std::vector<AABB>& barrierHulls,
+                std::vector<glm::mat4>& wall_matrices);
 
 void BuildBarrier(glm::vec3 position, float rotate, 
     std::vector<std::tuple<glm::mat4, const char*, int>>& g_TrackObjects,

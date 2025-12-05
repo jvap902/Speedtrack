@@ -19,11 +19,17 @@ uniform vec4 bbox_max;
 // Samplers de textura (apenas os que precisamos aqui)
 uniform sampler2D TextureImage0; // Textura da esfera
 
+//texturas das barreiras
+uniform sampler2D TextureImage4;
+uniform sampler2D TextureImage5;
+uniform sampler2D TextureImage6;
+
 // Constantes
 #define M_PI   3.14159265358979323846
 #define M_PI_2 1.57079632679489661923
 
 #define SPHERE1 1
+#define BARRIER 4
 
 // Atributos de vértice que serão gerados como saída ("out") pelo Vertex Shader.
 // ** Estes serão interpolados pelo rasterizador! ** gerando, assim, valores
@@ -87,39 +93,41 @@ void main()
     cor_v = vec4(-1.0, -1.0, -1.0, 0.0);
     sphere_texcoords = vec2(0.0, 0.0);
 
+    // Obtemos a posição da câmera utilizando a inversa da matriz que define o
+    // sistema de coordenadas da câmera.
+    vec4 origin = vec4(0.0, 0.0, 0.0, 1.0);
+    vec4 camera_position = inverse(view) * origin;
+
+    // O fragmento atual é coberto por um ponto que percente à superfície de um
+    // dos objetos virtuais da cena. Este ponto, p, possui uma posição no
+    // sistema de coordenadas global (World coordinates). Esta posição é obtida
+    // através da interpolação, feita pelo rasterizador, da posição de cada
+    // vértice.
+    vec4 p = position_world;
+
+    // Normal do fragmento atual, interpolada pelo rasterizador a partir das
+    // normais de cada vértice.
+    vec4 n = normalize(normal);
+
+    vec4 light_source_position = vec4(0.0, 2.0, 1.0, 1.0);
+    vec4 light_direction = normalize(vec4(0.0, 1.0, 0.0, 0.0));
+
+
+    float alpha = radians(30.0);
+
+    float intensity = 1;
+
+    // Vetor que define o sentido da fonte de luz em relação ao ponto atual.
+    vec4 l = normalize(light_source_position-p);
+
+    // Vetor que define o sentido da câmera em relação ao ponto atual.
+    vec4 v = normalize(camera_position - p);
+
+    // Vetor que define o sentido da reflexão especular ideal.
+    vec4 r = -l + 2*n*(dot(n, l));
+
     //Cálculo do Gouraud Shading
     if(object_id == SPHERE1) {
-        // Obtemos a posição da câmera utilizando a inversa da matriz que define o
-        // sistema de coordenadas da câmera.
-        vec4 origin = vec4(0.0, 0.0, 0.0, 1.0);
-        vec4 camera_position = inverse(view) * origin;
-
-        // O fragmento atual é coberto por um ponto que percente à superfície de um
-        // dos objetos virtuais da cena. Este ponto, p, possui uma posição no
-        // sistema de coordenadas global (World coordinates). Esta posição é obtida
-        // através da interpolação, feita pelo rasterizador, da posição de cada
-        // vértice.
-        vec4 p = position_world;
-
-        // Normal do fragmento atual, interpolada pelo rasterizador a partir das
-        // normais de cada vértice.
-        vec4 n = normalize(normal);
-
-        vec4 light_source_position = vec4(0.0, 2.0, 1.0, 1.0);
-        vec4 light_direction = normalize(vec4(0.0, 1.0, 0.0, 0.0));
-
-        float alpha = radians(30.0);
-
-        float intensity = 1;
-
-        // Vetor que define o sentido da fonte de luz em relação ao ponto atual.
-        vec4 l = normalize(light_source_position-p);
-
-        // Vetor que define o sentido da câmera em relação ao ponto atual.
-        vec4 v = normalize(camera_position - p);
-
-        // Vetor que define o sentido da reflexão especular ideal.
-        vec4 r = -l + 2*n*(dot(n, l));
 
         // 2. Calcular Coordenadas UV da Esfera (EXATAMENTE como no fragment shader)
         vec4 bbox_center = (bbox_min + bbox_max) / 2.0;
@@ -155,6 +163,44 @@ void main()
         vec3 phong_specular_term  = Ks*I*max(0, pow(dot(r, v), q));
 
         cor_v.rgb = lambert_diffuse_term + ambient_term + phong_specular_term;
+    }
+    else if (object_id == BARRIER){
+        // --- SAMPLE BARRIER TEXTURES ---
+        // main.cpp loads textures as:
+        // TextureImage4 = ARM (ambient/roughness/metal in channels)
+        // TextureImage5 = DIFFUSE / ALBEDO
+        // TextureImage6 = NORMAL   
+
+        // Local light definitions (keep this block self-contained)
+        vec3 I  = vec3(1.0, 1.0, 1.0);
+        vec3 Ia = vec3(0.2, 0.2, 0.2);
+
+        // Sample textures (use the order from main.cpp)
+        vec3 armMap    = texture(TextureImage4, texcoords).rgb; // AO / Rough / Metal
+        vec3 albedo    = texture(TextureImage5, texcoords).rgb; // Diffuse / Albedo
+        vec3 normalMap = texture(TextureImage6, texcoords).rgb; // Normal map (if you later add TBN)
+
+        // Extract channels
+        float ao        = armMap.r;
+        float roughness = clamp(armMap.g, 0.0, 1.0);
+        // float metallic = armMap.b; // unused for now
+
+        // Material coefficients (map your PBR-ish maps to Phong terms)
+        vec3 Kd = albedo;
+        vec3 Ka = albedo * 0.3 * ao;            // ambient scaled by AO
+        // Ks = vec3(0.5, 0.5, 0.5);          // tweakable specular color
+        float q  = mix(256.0, 10.0, roughness);  // shininess derived from roughness
+
+        // Phong lighting (using vec3)
+        float lambert = max(dot(n, l), 0.0);
+        vec3 lambert_diffuse_term = Kd * I * lambert;
+
+        vec3 ambient_term = Ka * Ia;
+
+        cor_v.rgb = lambert_diffuse_term + ambient_term;
+
+        // Standard position transformation
+        // gl_Position = ProjectionMatrix * ViewMatrix * ModelMatrix * vec4(in_position, 1.0);
     }
 
 }
