@@ -304,6 +304,7 @@ int main(int argc, char* argv[])
         float current_time = (float)glfwGetTime();
         deltaTime = current_time - prev_time;
         prev_time = current_time;
+        if (deltaTime > 0.1f) deltaTime = 0.1f;
 
         // 2. Sincronização com Globais Legado (Para TextRenderer funcionar)
         // O Input atualiza g_State, mas o TextRenderer lê g_CameraTheta, etc.
@@ -479,19 +480,16 @@ int main(int argc, char* argv[])
         if (possibleCollisions.count({CAR, CHECKPOINT1})) {
             if (g_NextCheckpoint == 1) {
                 g_NextCheckpoint = 2;
-                printf("CHECKPOINT 1/3 REACHED!\n");
             }
         }
         if (possibleCollisions.count({CAR, CHECKPOINT2})) {
             if (g_NextCheckpoint == 2) {
                 g_NextCheckpoint = 3;
-                printf("CHECKPOINT 2/3 REACHED!\n");
             }
         }
         if (possibleCollisions.count({CAR, CHECKPOINT3})) {
             if (g_NextCheckpoint == 3) {
                 g_NextCheckpoint = 4;
-                printf("CHECKPOINT 3/3 REACHED! GO FOR FINISH!\n");
             }
         }
         if (possibleCollisions.count({CAR, FINISH_LINE}))

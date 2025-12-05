@@ -31,6 +31,8 @@ void soundInit(Sound& sounds)
 
 void soundControl(Sound& sounds, const InputState& input, CarState& car)
 {
+    uint64_t frameIndex = sounds.accelerateFrames * (car.speed / 40.0f);
+    
     if (!input.w){
         sounds.releasedW = true;
         ma_sound_stop(&sounds.accelerate);
@@ -47,11 +49,13 @@ void soundControl(Sound& sounds, const InputState& input, CarState& car)
         ma_sound_stop(&sounds.slowDown);
         ma_sound_stop(&sounds.idle);
 
-        if(car.speed == 40.0f) //velocidade máxima
+        if(car.speed == 40.0f){ //velocidade máxima
+            ma_sound_stop(&sounds.accelerate);
             ma_sound_start(&sounds.maxSpeed);
+        }
         else if (sounds.releasedW){
+            ma_sound_stop(&sounds.accelerate);
 
-            uint64_t frameIndex = sounds.accelerateFrames * (car.speed / 40.0f);
 
             ma_sound_seek_to_pcm_frame(&sounds.accelerate, frameIndex);
             ma_sound_start(&sounds.accelerate);
