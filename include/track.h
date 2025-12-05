@@ -15,7 +15,8 @@ void AddStraight(std::vector<std::tuple<glm::mat4, const char*, int>>& objects,
                  int& bboxId,
                  TrackCursor& cursor,
                  std::vector<AABB>& barrierHulls,
-                 bool barrier=false);
+                 bool barrier=false,
+                 int checkpointId=0);
 
 void AddTurnLeft(std::vector<std::tuple<glm::mat4, const char*, int>>& objects,
                  const std::map<std::string, SceneObject>& scene,
@@ -23,7 +24,8 @@ void AddTurnLeft(std::vector<std::tuple<glm::mat4, const char*, int>>& objects,
                  int& bboxId,
                  TrackCursor& cursor,
                  std::vector<AABB>& barrierHulls,
-                 bool barrier=false);
+                 bool barrier=false,
+                 int checkpointId=0);
 
 void AddFinishLine(std::vector<std::tuple<glm::mat4, const char*, int>>& objects,
                  const std::map<std::string, SceneObject>& scene,

@@ -15,7 +15,8 @@ void AddStraight(std::vector<std::tuple<glm::mat4, const char*, int>>& objects,
                  int& bboxId,
                  TrackCursor& cursor,
                  std::vector<AABB>& barrierHulls,
-                 bool barrier)
+                 bool barrier,
+                 int checkpointId)
 {
     float rad = glm::radians(cursor.angleY);
 
@@ -32,6 +33,9 @@ void AddStraight(std::vector<std::tuple<glm::mat4, const char*, int>>& objects,
 
     // Add to visual list
     objects.push_back(std::make_tuple(model, "the_reta", STRAIGHT));
+
+    if (checkpointId > 0)
+        BuildBBoxArray(scene, boxes, bboxId, "the_reta", model, checkpointId);
 
     // Barreiras
     float radPiece = glm::radians(cursor.angleY);
@@ -69,7 +73,8 @@ void AddTurnLeft(std::vector<std::tuple<glm::mat4, const char*, int>>& objects,
                  int& bboxId,
                  TrackCursor& cursor,
                  std::vector<AABB>& barrierHulls,
-                 bool barrier)
+                 bool barrier,
+                 int checkpointId)
 {
     float rad = glm::radians(cursor.angleY);
 
@@ -81,6 +86,8 @@ void AddTurnLeft(std::vector<std::tuple<glm::mat4, const char*, int>>& objects,
 
     // Add to list
     objects.push_back(std::make_tuple(model, "the_turn", TURN));
+    if (checkpointId > 0)
+        BuildBBoxArray(scene, boxes, bboxId, "the_turn", model, checkpointId);
 
     // --- UPDATE CURSOR LOGIC ---
     float R = TURN_RADIUS;
@@ -167,6 +174,7 @@ void AddFinishLine(std::vector<std::tuple<glm::mat4, const char*, int>>& objects
 
     // Add to visual list
     objects.push_back(std::make_tuple(model, "the_reta", FINISH_LINE));
+    BuildBBoxArray(scene, boxes, bboxId, "the_reta", model, FINISH_LINE);
 
     auto barrier_matrix = model * Matrix_Translate(6.0f, 0.5f, 0.0f);
 
@@ -197,10 +205,12 @@ void BuildTrack(std::vector<std::tuple<glm::mat4, const char*, int>>& objects,
     // START LINE
     AddStraight(objects, scene, boxes, bboxId, cursor, barrierHulls);
     AddFinishLine(objects, scene, boxes, bboxId, cursor);
+
     AddStraight(objects, scene, boxes, bboxId, cursor, barrierHulls);
 
+    // CHECKPOINT ANTES DA LINHA DE CHEGADA
     // TURN 1
-    AddTurnLeft(objects, scene, boxes, bboxId, cursor, barrierHulls, true);
+    AddTurnLeft(objects, scene, boxes, bboxId, cursor, barrierHulls, true, CHECKPOINT3);
 
     // SIDE STRAIGHTS
     AddStraight(objects, scene, boxes, bboxId, cursor, barrierHulls, true);
@@ -212,7 +222,10 @@ void BuildTrack(std::vector<std::tuple<glm::mat4, const char*, int>>& objects,
     // BACK STRAIGHTS
     AddStraight(objects, scene, boxes, bboxId, cursor, barrierHulls);
     AddStraight(objects, scene, boxes, bboxId, cursor, barrierHulls);
-    AddStraight(objects, scene, boxes, bboxId, cursor, barrierHulls);
+
+    // CHECKPOINT 2
+    AddStraight(objects, scene, boxes, bboxId, cursor, barrierHulls, false, CHECKPOINT2);
+
     AddStraight(objects, scene, boxes, bboxId, cursor, barrierHulls);
     AddStraight(objects, scene, boxes, bboxId, cursor, barrierHulls);
 
@@ -221,7 +234,8 @@ void BuildTrack(std::vector<std::tuple<glm::mat4, const char*, int>>& objects,
 
     // SIDE STRAIGHTS
     AddStraight(objects, scene, boxes, bboxId, cursor, barrierHulls);
-    AddStraight(objects, scene, boxes, bboxId, cursor, barrierHulls);
+    // CHECKPOINT 1
+    AddStraight(objects, scene, boxes, bboxId, cursor, barrierHulls, false, CHECKPOINT1);
 
     // TURN 4
     AddTurnLeft(objects, scene, boxes, bboxId, cursor, barrierHulls, true);
