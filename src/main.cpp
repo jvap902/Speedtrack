@@ -65,6 +65,7 @@ glm::vec3 P0 = {-4.0f, 0.0f, 10.0f};
 glm::vec3 P1 = {0.0f, 0.0f, 12.5f};
 glm::vec3 P2 = {0.0f, 0.0f, 8.5f};
 glm::vec3 P3 = {4.0f, -0.0f, 10.0f};
+glm::vec3 spherePosition;
 
 // --- VARIÁVEIS GLOBAIS DE ESTADO (State Management) ---
 // Estas substituem as variáveis soltas antigas para a lógica do jogo.
@@ -469,7 +470,7 @@ int main(int argc, char* argv[])
         //Teste Curva de Bézier
         // E usar 'currentFrameBoxes' para não explodir a memória/CPU
         float t = std::sin(current_time)*0.5 + 0.5;
-        glm::vec3 spherePosition = calculateBezierPoint(t, P0, P1, P2, P3);
+        if (g_RaceFinished == false) spherePosition = calculateBezierPoint(t, P0, P1, P2, P3);
 
         glm::mat4 sphere_model_matrix3 = Matrix_Translate(spherePosition.x,spherePosition.y, spherePosition.z)
                                          * Matrix_Scale(1.0f, 1.0f, 1.0f);
