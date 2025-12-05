@@ -38,3 +38,6 @@
   - Espaço congela o jogo.
   
 ## Compilação e execução:
+- Para a compilação, é necessário possuir g++ e CMake instalados. 
+- Para a execução da aplicação, não é necessária a instalação de nenhuma aplicação externa,
+Basta acessar o executável que se encontra dentro das pastas bin e Debug, chamado main.exe. 
