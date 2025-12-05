@@ -33,6 +33,8 @@
 ## Manual:
   Para controle do carro: W (anda para frente), A (vira para a esquerda), S (anda para trás), D (vira para a direita).
   V alterna modo de câmera (look-at ou câmera livre).
-  Movimento do mouse controla câmera.
-
+  Movimento do mouse controla a câmera livre.
+  R reseta o timer e reposiciona o carro para a posição inicial.
+  Espaço congela o jogo.
+  
 ## Compilação e execução:
